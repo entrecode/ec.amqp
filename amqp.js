@@ -4,7 +4,7 @@ const path = require('path');
 const { promisify } = require('util');
 const config = require('config');
 const amqp = require('amqp-connection-manager');
-
+const uuid = require('uuid/v4');
 
 // init default config
 const ourConfigDir = path.join(__dirname, 'config');
@@ -27,7 +27,6 @@ const connectionManager = amqp.connect(connectionURLs, { json: true });
 connectionManager.on('connect', c => console.log(`amqp connected to ${c.url}`));
 connectionManager.on('disconnect', () => console.warn(`amqp disconnected (${config.amqp.url})`));
 
-
 async function isReachable() {
   if (connectionManager.isConnected()) {
     return true;
@@ -35,9 +34,52 @@ async function isReachable() {
   throw new Error('amqp is not connected');
 }
 
+async function workerQueue(queueName, exchange, bindings, handler) {
+  return amqp.createChannel({
+    async setup(channel) {
+      await channel.assertExchange(exchange, 'topic', { durable: true });
+      const { queue } = await channel.assertQueue(queueName, { durable: true });
+      bindings.forEach(binding => channel.bindQueue(queue, exchange, binding));
+      channel.consume(queue, (message) => {
+        const event = JSON.parse(message.content.toString());
+        handler(event, message.properties, {
+          ack: () => channel.ack(message),
+          nack: (timeout = 10000) => setTimeout(() => {
+            channel.nack(message);
+          }, timeout),
+        });
+      }, { exclusive: false });
+    }
+  });
+}
+
+async function subscribe(queueNamePrefix, exchange, bindings, handler, options = {}) {
+  return amqp.createChannel({
+    async setup(channel) {
+      await channel.assertExchange(exchange, 'topic', { durable: true });
+      const { queue } = await channel.assertQueue(`${queueNamePrefix}-${uuid()}}`, { durable: false, exclusive: true });
+      bindings.forEach(binding => channel.bindQueue(queue, exchange, binding));
+      let consumeOptions;
+      if (options.noAck) {
+        consumeOptions = { noAck: true };
+      }
+      channel.consume(queue, (message) => {
+        const event = JSON.parse(message.content.toString());
+        handler(event, message.properties, {
+          ack: () => channel.ack(message),
+          nack: (timeout = 10000) => setTimeout(() => {
+            channel.nack(message);
+          }, timeout),
+        });
+      }, Object.assign({}, { exclusive: true }, consumeOptions));
+    }
+  });
+}
+
 
 
 module.exports = {
   isReachable,
-
+  workerQueue,
+  subscribe,
 };

@@ -12,9 +12,13 @@ If worker processes go offline, the events wait in the queue and are processed f
 
 Use cases are: sending emails, updating a database. Generally spoken: stuff that is stored globally and therefore events should only processed once.
 
-### Public/Subscribe
+### Publish/Subscribe
 
 Events are in an exclusive queue per process. The queue is non-persisting and only lives as long as the process lives. Useful for updating in-memory data in processes. 
+
+## Publish
+Sending messages via this lib is not yet implemented.
+
 
 ## Usage Example
 
@@ -72,8 +76,10 @@ Hosts are permuted automatically.
 
 ## API
 
-### .isReachable() 
+### async #.isReachable() 
 returns `true` if amqp is connected, throws an Error otherwise.
 
-subscribe:
--> queuenameprefix, publicAPI, [ key1, key2], fn, { noAck }
+### async #.workerQueue(queueName, exchange, bindings, handler)
+
+### async #.subscribe(queueNamePrefix, exchange, bindings, handler[, options])
+
