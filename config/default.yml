@@ -1,0 +1,4 @@
+user: guest
+password: guest
+hosts: 
+  - localhost

@@ -1,0 +1,26 @@
+{
+  "name": "ec.amqp",
+  "version": "0.1.0",
+  "description": "simple access to entrecode RabbitMQ via node.js",
+  "main": "amqp.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/entrecode/ec.amqp.git"
+  },
+  "author": "Ruben Deyhle <deyhle@entrecode.de>",
+  "license": "UNLICENSED",
+  "private": true,
+  "bugs": {
+    "url": "https://github.com/entrecode/ec.amqp/issues"
+  },
+  "homepage": "https://github.com/entrecode/ec.amqp#readme",
+  "dependencies": {
+    "amqp-connection-manager": "^2.0.0",
+    "amqplib": "^0.5.2",
+    "config": "^1.30.0",
+    "js-yaml": "^3.12.0"
+  }
+}

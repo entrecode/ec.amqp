@@ -1,0 +1,4 @@
+hosts: 
+  - cluster1.cachena.entrecode.de
+  - cluster2.cachena.entrecode.de
+  - cluster3.cachena.entrecode.de
