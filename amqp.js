@@ -26,7 +26,7 @@ const connectionURLs = shuffleArray(config.get('amqp.hosts')
 
 const connectionManager = amqp.connect(connectionURLs, { json: true });
 connectionManager.on('connect', c => console.log(`amqp connected to ${c.url}`));
-connectionManager.on('disconnect', () => console.warn(`amqp disconnected (${config.amqp.url})`));
+connectionManager.on('disconnect', () => console.warn(`amqp disconnected (${connectionURLs.join('|')})`));
 
 async function isReachable() {
   if (connectionManager.isConnected()) {
