@@ -36,7 +36,7 @@ async function isReachable() {
 }
 
 async function workerQueue(queueName, exchange, bindings, handler) {
-  return amqp.createChannel({
+  return connectionManager.createChannel({
     async setup(channel) {
       await channel.assertExchange(exchange, 'topic', { durable: true });
       const { queue } = await channel.assertQueue(queueName, { durable: true });
@@ -55,7 +55,7 @@ async function workerQueue(queueName, exchange, bindings, handler) {
 }
 
 async function subscribe(queueNamePrefix, exchange, bindings, handler, options = {}) {
-  return amqp.createChannel({
+  return connectionManager.createChannel({
     async setup(channel) {
       await channel.assertExchange(exchange, 'topic', { durable: true });
       const { queue } = await channel.assertQueue(`${queueNamePrefix}-${uuid()}}`, { durable: false, exclusive: true });
@@ -78,15 +78,15 @@ async function subscribe(queueNamePrefix, exchange, bindings, handler, options =
 }
 
 process.on('SIGHUP', () => {
-  amqp.close();
+  connectionManager.close();
 });
 
 process.on('SIGINT', () => {
-  amqp.close();
+  connectionManager.close();
 });
 
 process.on('SIGTERM', () => {
-  amqp.close();
+  connectionManager.close();
 });
 
 
