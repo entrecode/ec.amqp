@@ -16,6 +16,7 @@ function shuffleArray(array) {
       const j = Math.floor(Math.random() * (i + 1));
       [array[i], array[j]] = [array[j], array[i]]; // eslint-disable-line no-param-reassign
   }
+  return array;
 }
 
 const connectionUser = config.get('amqp.user');
