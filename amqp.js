@@ -76,6 +76,17 @@ async function subscribe(queueNamePrefix, exchange, bindings, handler, options =
   });
 }
 
+process.on('SIGHUP', () => {
+  amqp.close();
+});
+
+process.on('SIGINT', () => {
+  amqp.close();
+});
+
+process.on('SIGTERM', () => {
+  amqp.close();
+});
 
 
 module.exports = {
