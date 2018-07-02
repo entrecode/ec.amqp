@@ -58,6 +58,11 @@ amqp.subscribe(
   }
 )
 
+// publish:
+const publish = await amqp.publishChannel('myExchange');
+
+publish('my.routing.key', contentJSON, 'didStuff', 'myAppID', { timestamp });
+// options object is optional and can be used to overwrite defaults.
 ```
 
 ## Custom Config

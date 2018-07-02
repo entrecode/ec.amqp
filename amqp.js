@@ -1,7 +1,6 @@
 process.env.SUPPRESS_NO_CONFIG_WARNING = 'y';
 
 const path = require('path');
-const { promisify } = require('util');
 const config = require('config');
 const amqp = require('amqp-connection-manager');
 const uuid = require('uuid/v4');
@@ -87,6 +86,48 @@ async function subscribe(queueNamePrefix, exchange, bindings, handler, options =
   });
 }
 
+async function publishChannel(exchange) {
+  const channel = await new Promise((resolve, reject) => {
+    connectionManager.createChannel({
+      setup(createdChannel) {
+        createdChannel.assertExchange(exchange, 'topic', { durable: true })
+          .then(() => resolve(createdChannel))
+          .catch(reject);
+      },
+    });
+  });
+  return async function publish(routingKey, content, type, appID, options) {
+    return channel.publish(
+      exchange,
+      routingKey,
+      Buffer.from(JSON.stringify(content)),
+      Object.assign(
+        {
+          persistent: true,
+          contentType: 'application/json',
+          messageId: uuid(),
+          type: 'event',
+          appId: 'unknown',
+          timestamp: new Date().getTime(),
+        }, {
+          type,
+          appId: appID,
+        },
+        options,
+      ),
+    )
+      .then((ok) => {
+        if (ok) {
+          return Promise.resolve();
+        }
+        return new Promise((resolve) => {
+          channel.once('drain', resolve);
+        });
+      });
+  };
+}
+
+
 process.on('SIGHUP', () => {
   connectionManager.close();
 });
@@ -104,4 +145,5 @@ module.exports = {
   isReachable,
   workerQueue,
   subscribe,
+  publishChannel,
 };
