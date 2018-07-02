@@ -13,8 +13,8 @@ config.util.setModuleDefaults('amqp', baseConfig);
 
 function shuffleArray(array) {
   for (let i = array.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]]; // eslint-disable-line no-param-reassign
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]]; // eslint-disable-line no-param-reassign
   }
   return array;
 }
@@ -35,22 +35,32 @@ async function isReachable() {
   throw new Error('amqp is not connected');
 }
 
-async function workerQueue(queueName, exchange, bindings, handler) {
+async function workerQueue(queueName, exchange, bindings, handler, prefetch = 1) {
   return connectionManager.createChannel({
     async setup(channel) {
       await channel.assertExchange(exchange, 'topic', { durable: true });
       const { queue } = await channel.assertQueue(queueName, { durable: true });
+      channel.prefetch(prefetch);
       bindings.forEach(binding => channel.bindQueue(queue, exchange, binding));
       channel.consume(queue, (message) => {
         const event = JSON.parse(message.content.toString());
-        handler(event, message.properties, {
+        const properties = Object.assign(
+          {},
+          message.properties,
+          { redelivered: message.fields.redelivered },
+        );
+        handler(event, properties, {
           ack: () => channel.ack(message),
-          nack: (timeout = 10000) => setTimeout(() => {
-            channel.nack(message);
+          nack: (timeout = 10000, requeue = false, redirectQueue) => setTimeout(async () => {
+            if (redirectQueue) {
+              await channel.assertQueue(redirectQueue, { durable: true });
+              await channel.sendToQueue(redirectQueue, message.content, message.properties);
+            }
+            return channel.nack(message, false, requeue);
           }, timeout),
         });
       }, { exclusive: false });
-    }
+    },
   });
 }
 
@@ -73,7 +83,7 @@ async function subscribe(queueNamePrefix, exchange, bindings, handler, options =
           }, timeout),
         });
       }, Object.assign({}, { exclusive: true }, consumeOptions));
-    }
+    },
   });
 }
 

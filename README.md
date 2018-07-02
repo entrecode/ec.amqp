@@ -37,8 +37,9 @@ amqp.workerQueue(
     const eventType = properties.type;
     // event is parsed payload
     ack(); // always call ack() or nack()
-    nack(10000) // call nack after timeout of 10 seconds. This is also the default
+    nack(10000) // call nack after timeout of 10 seconds. This is also the default. Second parameter requeue, third parameter redirect queue (for dead-letter queues)
   },
+  1 // prefetch (default 1)
 );
 
 // consume pub/sub pattern:
