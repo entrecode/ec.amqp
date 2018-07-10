@@ -25,7 +25,13 @@ const connectionURLs = shuffleArray(config.get('amqp.hosts')
 
 const connectionManager = amqp.connect(connectionURLs, { json: true });
 connectionManager.on('connect', c => console.log(`amqp connected to ${c.url}`));
-connectionManager.on('disconnect', () => console.warn(`amqp disconnected (${config.get('amqp.hosts').join('|')})`));
+connectionManager.on('disconnect', (err) => {
+  console.warn(`amqp disconnected (${config.get('amqp.hosts').join('|')})`);
+
+  if (err) {
+    console.warn(`amqp disconnect reason: ${err.stack}`);
+  }
+});
 
 async function isReachable() {
   if (connectionManager.isConnected()) {
@@ -41,23 +47,30 @@ async function workerQueue(queueName, exchange, bindings, handler, prefetch = 1)
       const { queue } = await channel.assertQueue(queueName, { durable: true });
       channel.prefetch(prefetch);
       bindings.forEach(binding => channel.bindQueue(queue, exchange, binding));
-      channel.consume(queue, (message) => {
+      channel.consume(queue, async (message) => {
         const event = JSON.parse(message.content.toString());
         const properties = Object.assign(
           {},
           message.properties,
           { redelivered: message.fields.redelivered },
         );
-        handler(event, properties, {
-          ack: () => channel.ack(message),
-          nack: (timeout = 10000, requeue = false, redirectQueue) => setTimeout(async () => {
-            if (redirectQueue) {
-              await channel.assertQueue(redirectQueue, { durable: true });
-              await channel.sendToQueue(redirectQueue, message.content, message.properties);
-            }
-            return channel.nack(message, false, requeue);
-          }, timeout),
-        });
+        const ack = () => channel.ack(message);
+        const nack = (timeout = 10000, requeue = false, redirectQueue) => setTimeout(async () => {
+          if (redirectQueue) {
+            await channel.assertQueue(redirectQueue, { durable: true });
+            await channel.sendToQueue(redirectQueue, message.content, message.properties);
+          }
+          return channel.nack(message, false, requeue);
+        }, timeout);
+        try {
+          await handler(event, properties, {
+            ack,
+            nack,
+          });
+        } catch (err) {
+          console.error(err);
+          nack(10000, true);
+        }
       }, { exclusive: false });
     },
   });
@@ -73,14 +86,21 @@ async function subscribe(queueNamePrefix, exchange, bindings, handler, options =
       if (options.noAck) {
         consumeOptions = { noAck: true };
       }
-      channel.consume(queue, (message) => {
+      channel.consume(queue, async (message) => {
         const event = JSON.parse(message.content.toString());
-        handler(event, message.properties, {
-          ack: () => channel.ack(message),
-          nack: (timeout = 10000) => setTimeout(() => {
-            channel.nack(message);
-          }, timeout),
-        });
+        const ack = () => channel.ack(message);
+        const nack = (timeout = 10000) => setTimeout(() => {
+          channel.nack(message);
+        }, timeout);
+        try {
+          await handler(event, message.properties, {
+            ack,
+            nack,
+          });
+        } catch (err) {
+          console.error(err);
+          nack(10000);
+        }
       }, Object.assign({}, { exclusive: true }, consumeOptions));
     },
   });
