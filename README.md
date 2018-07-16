@@ -65,6 +65,49 @@ publish('my.routing.key', contentJSON, 'didStuff', 'myAppID', { timestamp });
 // options object is optional and can be used to overwrite defaults.
 ```
 
+### Example Event
+
+```js
+{
+  "entryID": "NJfFl_59j",
+  "modelID": "5dd6bf21-a104-4942-94f4-8da9ca8c8b51",
+  "private": false,
+  "locale": "",
+  "data": {
+    "food": "VJlWJDMQo",
+    "quantity": 2,
+    "amount": null,
+    "_creator": null,
+    "creator": null
+  },
+  "syncID": null,
+  "entryAndAssetRelations": [
+    {
+      "sourceEntry": "NJfFl_59j",
+      "sourceLocale": "",
+      "sourceField": "food",
+      "targetEntry": "VJlWJDMQo",
+      "validation": "food"
+    }
+  ],
+  "roleRelations": [],
+  "uniqueFields": [],
+  "readOnlyChecked": true,
+  "modelTitle": "ingredient",
+  "dataManagerID": "fc8aff95-fd00-4f98-ac06-61659b48657b",
+  "shortID": "36c4b413",
+  "user": {
+    "accountID": "61afae15-8685-4d06-83bc-87e827ebb3d1",
+    "userType": "ecUser"
+  },
+  "oldEntryData": {
+    "quantity": 1
+  },
+  "modified": "2018-07-16T06:54:26.756Z",
+  "hash": null
+}
+```
+
 ## Custom Config
 The module uses [node-config](https://github.com/lorenwest/node-config) internally. It brings default amqp configuration for `default`, `stage` and `production` NODE_ENVs. 
 You can overwrite the config by providing a node-config in your app:
