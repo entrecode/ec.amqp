@@ -16,9 +16,16 @@ Use cases are: sending emails, updating a database. Generally spoken: stuff that
 
 Events are in an exclusive queue per process. The queue is non-persisting and only lives as long as the process lives. Useful for updating in-memory data in processes. 
 
-## Publish
-Sending messages via this lib is not yet implemented.
+## Other Usages
 
+### Publish Channel
+
+To publish messages, call `amqp.publishChannel(exchange)`. You'll get back an async function `publish(routingKey, content, type, appID, options)`. This is a helper function for publishing messages. `content` is expected to be JSON which
+will be stringified and put in a Buffer in the function. A `messageId` and `timestamp` will be generated automatically. `type`, `appID` and `options` are optional. 
+
+### Plain Channel
+
+If you just want a channel to do anything with, you can call `amqp.plainChannel(exchange)` which will resolve to a channel without bindings at the `exchange`. 
 
 ## Usage Example
 
