@@ -106,7 +106,7 @@ async function subscribe(queueNamePrefix, exchange, bindings, handler, options =
   });
 }
 
-async function publishChannel(exchange) {
+async function plainChannel(exchange) {
   const channel = await new Promise((resolve, reject) => {
     connectionManager.createChannel({
       setup(createdChannel) {
@@ -116,6 +116,11 @@ async function publishChannel(exchange) {
       },
     });
   });
+  return channel;
+}
+
+async function publishChannel(exchange) {
+  const channel = await plainChannel(exchange);
   return async function publish(routingKey, content, type, appID, options) {
     return channel.publish(
       exchange,
@@ -166,4 +171,5 @@ module.exports = {
   workerQueue,
   subscribe,
   publishChannel,
+  plainChannel,
 };
