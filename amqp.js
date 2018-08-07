@@ -122,7 +122,7 @@ async function plainChannel(exchange) {
 async function publishChannel(exchange) {
   const channel = await plainChannel(exchange);
   return async function publish(routingKey, content, type, appID, options) {
-    return channel.publish(
+    return Promise.resolve(channel.publish(
       exchange,
       routingKey,
       Buffer.from(JSON.stringify(content)),
@@ -140,7 +140,7 @@ async function publishChannel(exchange) {
         },
         options,
       ),
-    )
+    ))
       .then((ok) => {
         if (ok) {
           return Promise.resolve();
