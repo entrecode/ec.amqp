@@ -29,7 +29,7 @@ connectionManager.on('disconnect', (err) => {
   console.warn(`amqp disconnected (${config.get('amqp.hosts').join('|')})`);
 
   if (err) {
-    console.warn(`amqp disconnect reason: ${err.stack}`);
+    console.warn(`amqp disconnect reason: ${err.message} ${err.stack} ${JSON.stringify(err)}`);
   }
 });
 
