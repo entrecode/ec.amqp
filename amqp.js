@@ -48,6 +48,9 @@ async function workerQueue(queueName, exchange, bindings, handler, prefetch = 1)
       channel.prefetch(prefetch);
       bindings.forEach(binding => channel.bindQueue(queue, exchange, binding));
       channel.consume(queue, async (message) => {
+        if (!message) {
+          throw new Error('consumer was canceled!');
+        }
         const event = JSON.parse(message.content.toString());
         const properties = Object.assign(
           {},
@@ -87,6 +90,9 @@ async function subscribe(queueNamePrefix, exchange, bindings, handler, options =
         consumeOptions = { noAck: true };
       }
       channel.consume(queue, async (message) => {
+        if (!message) {
+          throw new Error('consumer was canceled!');
+        }
         const event = JSON.parse(message.content.toString());
         const ack = () => channel.ack(message);
         const nack = (timeout = 10000) => setTimeout(() => {
