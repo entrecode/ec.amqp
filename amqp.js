@@ -112,7 +112,18 @@ async function subscribe(queueNamePrefix, exchange, bindings, handler, options =
   });
 }
 
-async function plainChannel(exchange) {
+async function plainChannel(exchange, channelCallback) {
+  const channelWrapper = connectionManager.createChannel({
+    async setup(channel) {
+      await channel.assertExchange(exchange, 'topic', { durable: true });
+      if (channelCallback) {
+        await channelCallback(channel);
+      }
+    }
+  });
+  return channelWrapper;
+
+  /*
   const channel = await new Promise((resolve, reject) => {
     connectionManager.createChannel({
       setup(createdChannel) {
@@ -123,10 +134,32 @@ async function plainChannel(exchange) {
     });
   });
   return channel;
+  */
 }
 
 async function publishChannel(exchange) {
-  const channel = await plainChannel(exchange);
+  const channelWrapper = await plainChannel(exchange);
+  return async function publish(routingKey, content, type, appID, options) {
+    return channelWrapper.publish(
+      exchange,
+      routingKey,
+      Buffer.from(JSON.stringify(content)),
+      Object.assign(
+        {
+          persistent: true,
+          contentType: 'application/json',
+          messageId: uuid(),
+          type: 'event',
+          appId: 'unknown',
+          timestamp: new Date().getTime(),
+        },
+        { type, appId: appID },
+        options,
+      ),
+    );
+  };
+
+  /*
   return async function publish(routingKey, content, type, appID, options) {
     return Promise.resolve(channel.publish(
       exchange,
@@ -156,6 +189,7 @@ async function publishChannel(exchange) {
         });
       });
   };
+  */
 }
 
 
