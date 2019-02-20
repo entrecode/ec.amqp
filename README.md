@@ -139,3 +139,6 @@ returns `true` if amqp is connected, throws an Error otherwise.
 
 ### async #.subscribe(queueNamePrefix, exchange, bindings, handler[, options])
 
+### async #.connectionManager
+reference to the underlying amqp-connection-manager object. Only for legacy adaptors. 
+
