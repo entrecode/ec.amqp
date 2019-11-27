@@ -35,7 +35,7 @@ if (process.env.NODE_ENV === 'testing') {
 } else {
   connectionManager = amqp.connect(connectionURLs, { json: true });
   connectionManager.on('connect', (c) => console.log(`amqp connected to ${c.url}`));
-  connectionManager.on('disconnect', (err) => {
+  connectionManager.on('disconnect', ({ err }) => {
     console.warn(`amqp disconnected (${config.get('amqp.hosts').join('|')})`);
 
     if (err) {
