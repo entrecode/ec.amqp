@@ -1,3 +1,4 @@
+/* eslint-disable prefer-object-spread */
 process.env.SUPPRESS_NO_CONFIG_WARNING = 'y';
 
 const path = require('path');
@@ -21,7 +22,7 @@ function shuffleArray(array) {
 const connectionUser = config.get('amqp.user');
 const connectionPassword = config.get('amqp.password');
 const connectionURLs = shuffleArray(
-  config.get('amqp.hosts').map((host) => `amqp://${connectionUser}:${connectionPassword}@${host}`),
+  config.get('amqp.hosts').map((host) => `amqp://${connectionUser}:${connectionPassword}@${host}`)
 );
 
 let connectionManager;
@@ -43,6 +44,7 @@ if (process.env.NODE_ENV === 'testing') {
     }
   });
 }
+
 async function isReachable() {
   if (connectionManager.isConnected()) {
     return true;
@@ -56,7 +58,7 @@ async function workerQueue(queueName, exchange, bindings, handler, prefetch = 1)
       await channel.assertExchange(exchange, 'topic', { durable: true });
       const { queue } = await channel.assertQueue(queueName, { durable: true });
       channel.prefetch(prefetch);
-      bindings.forEach((binding) => channel.bindQueue(queue, exchange, binding));
+      await Promise.all(bindings.map((binding) => channel.bindQueue(queue, exchange, binding)));
       channel.consume(
         queue,
         async (message) => {
@@ -84,7 +86,7 @@ async function workerQueue(queueName, exchange, bindings, handler, prefetch = 1)
             nack(10000, true);
           }
         },
-        { exclusive: false },
+        { exclusive: false }
       );
     },
   });
@@ -95,7 +97,7 @@ async function subscribe(queueNamePrefix, exchange, bindings, handler, options =
     async setup(channel) {
       await channel.assertExchange(exchange, 'topic', { durable: true });
       const { queue } = await channel.assertQueue(`${queueNamePrefix}-${uuid()}}`, { durable: false, exclusive: true });
-      bindings.forEach((binding) => channel.bindQueue(queue, exchange, binding));
+      await Promise.all(bindings.map((binding) => channel.bindQueue(queue, exchange, binding)));
       let consumeOptions;
       if (options.noAck) {
         consumeOptions = { noAck: true };
@@ -122,7 +124,7 @@ async function subscribe(queueNamePrefix, exchange, bindings, handler, options =
             nack(10000);
           }
         },
-        Object.assign({}, { exclusive: true }, consumeOptions),
+        Object.assign({}, { exclusive: true }, consumeOptions)
       );
     },
   });
@@ -138,19 +140,6 @@ async function plainChannel(exchange, channelCallback) {
     },
   });
   return channelWrapper;
-
-  /*
-  const channel = await new Promise((resolve, reject) => {
-    connectionManager.createChannel({
-      setup(createdChannel) {
-        createdChannel.assertExchange(exchange, 'topic', { durable: true })
-          .then(() => resolve(createdChannel))
-          .catch(reject);
-      },
-    });
-  });
-  return channel;
-  */
 }
 
 async function publishChannel(exchange) {
@@ -170,42 +159,10 @@ async function publishChannel(exchange) {
           timestamp: new Date().getTime(),
         },
         { type, appId: appID },
-        options,
-      ),
+        options
+      )
     );
   };
-
-  /*
-  return async function publish(routingKey, content, type, appID, options) {
-    return Promise.resolve(channel.publish(
-      exchange,
-      routingKey,
-      Buffer.from(JSON.stringify(content)),
-      Object.assign(
-        {
-          persistent: true,
-          contentType: 'application/json',
-          messageId: uuid(),
-          type: 'event',
-          appId: 'unknown',
-          timestamp: new Date().getTime(),
-        }, {
-          type,
-          appId: appID,
-        },
-        options,
-      ),
-    ))
-      .then((ok) => {
-        if (ok) {
-          return Promise.resolve();
-        }
-        return new Promise((resolve) => {
-          channel.once('drain', resolve);
-        });
-      });
-  };
-  */
 }
 
 process.on('SIGHUP', () => {
