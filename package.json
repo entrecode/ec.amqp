@@ -20,7 +20,7 @@
   "dependencies": {
     "amqp-connection-manager": "^2.3.3",
     "amqplib": "^0.5.5",
-    "config": "3.0.1",
+    "config": "2.0.2",
     "js-yaml": "^3.13.1",
     "uuid": "^3.3.3"
   }
