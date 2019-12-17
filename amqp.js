@@ -1,5 +1,6 @@
 /* eslint-disable prefer-object-spread */
 process.env.SUPPRESS_NO_CONFIG_WARNING = 'y';
+process.env.ALLOW_CONFIG_MUTATIONS = 'y';
 
 const path = require('path');
 const config = require('config');
