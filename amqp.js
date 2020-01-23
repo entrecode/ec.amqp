@@ -54,7 +54,7 @@ async function isReachable() {
 }
 
 async function workerQueue(queueName, exchange, bindings, handler, prefetch = 1) {
-  return connectionManager.createChannel({
+  const channelWrapper = connectionManager.createChannel({
     async setup(channel) {
       await channel.assertExchange(exchange, 'topic', { durable: true });
       const { queue } = await channel.assertQueue(queueName, { durable: true });
@@ -68,14 +68,14 @@ async function workerQueue(queueName, exchange, bindings, handler, prefetch = 1)
           }
           const event = JSON.parse(message.content.toString());
           const properties = Object.assign({}, message.properties, { redelivered: message.fields.redelivered });
-          const ack = () => channel.ack(message);
+          const ack = () => channelWrapper.ack(message);
           const nack = (timeout = 10000, requeue = false, redirectQueue) =>
             setTimeout(async () => {
               if (redirectQueue) {
                 await channel.assertQueue(redirectQueue, { durable: true });
-                await channel.sendToQueue(redirectQueue, message.content, message.properties);
+                await channelWrapper.sendToQueue(redirectQueue, message.content, message.properties);
               }
-              return channel.nack(message, false, requeue);
+              return channelWrapper.nack(message, false, requeue);
             }, timeout);
           try {
             await handler(event, properties, {
@@ -91,10 +91,11 @@ async function workerQueue(queueName, exchange, bindings, handler, prefetch = 1)
       );
     },
   });
+  return channelWrapper;
 }
 
 async function subscribe(queueNamePrefix, exchange, bindings, handler, options = {}) {
-  return connectionManager.createChannel({
+  const channelWrapper = connectionManager.createChannel({
     async setup(channel) {
       await channel.assertExchange(exchange, 'topic', { durable: true });
       const { queue } = await channel.assertQueue(`${queueNamePrefix}-${uuid()}}`, { durable: false, exclusive: true });
@@ -110,10 +111,10 @@ async function subscribe(queueNamePrefix, exchange, bindings, handler, options =
             throw new Error('consumer was canceled!');
           }
           const event = JSON.parse(message.content.toString());
-          const ack = () => channel.ack(message);
+          const ack = () => channelWrapper.ack(message);
           const nack = (timeout = 10000) =>
             setTimeout(() => {
-              channel.nack(message);
+              channelWrapper.nack(message);
             }, timeout);
           try {
             await handler(event, message.properties, {
@@ -129,6 +130,7 @@ async function subscribe(queueNamePrefix, exchange, bindings, handler, options =
       );
     },
   });
+  return channelWrapper;
 }
 
 async function plainChannel(exchange, channelCallback) {
