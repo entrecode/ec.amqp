@@ -1,4 +1,4 @@
 hosts:
-  - cluster1-local.entrecode.de
-  - cluster2-local.entrecode.de
-  - cluster3-local.entrecode.de
+  - cluster1.entrecode.de
+  - cluster2.entrecode.de
+  - cluster3.entrecode.de
