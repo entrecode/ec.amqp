@@ -27,7 +27,7 @@ const connectionURLs = shuffleArray(
 );
 
 let connectionManager;
-if (process.env.NODE_ENV === 'testing') {
+if (process.env.NODE_ENV === 'testing' || (config.has('amqp.active') && config.get('amqp.active') === false)) {
   connectionManager = {
     isConnected: () => true,
     createChannel: () => ({ publish: () => {} }),
