@@ -121,6 +121,7 @@ You can overwrite the config by providing a node-config in your app:
 
 ```yaml
 amqp:
+  active: true
   user: search
   password: search
   hosts:
@@ -129,6 +130,8 @@ amqp:
 ```
 User and password are required, uses "guest" otherwise.
 Hosts are permuted automatically.
+
+For local usage, set `NODE_ENV` = `testing` or `active: false` in the config. A missing `active` configuration is equivalent to `active: true`.
 
 ## API
 
@@ -142,3 +145,10 @@ returns `true` if amqp is connected, throws an Error otherwise.
 ### async #.connectionManager
 reference to the underlying amqp-connection-manager object. Only for legacy adaptors. 
 
+# Changelog
+
+## 0.7.1
+- respect `active: false` in config
+
+## 0.7.0
+- BREAKING: default config is now for enderby environment
