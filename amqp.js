@@ -98,7 +98,7 @@ async function subscribe(queueNamePrefix, exchange, bindings, handler, options =
   const channelWrapper = connectionManager.createChannel({
     async setup(channel) {
       await channel.assertExchange(exchange, 'topic', { durable: true });
-      const { queue } = await channel.assertQueue(`${queueNamePrefix}-${uuid()}}`, { durable: false, exclusive: true });
+      const { queue } = await channel.assertQueue(`${queueNamePrefix}-${uuid()}`, { durable: false, exclusive: true });
       await Promise.all(bindings.map((binding) => channel.bindQueue(queue, exchange, binding)));
       let consumeOptions;
       if (options.noAck) {
