@@ -25,7 +25,7 @@ will be stringified and put in a Buffer in the function. A `messageId` and `time
 
 ### Plain Channel
 
-If you just want a channel to do anything with, you can call `amqp.plainChannel(exchange, channelCallback(channel))` which call `channelCallback` with a channel without bindings at the `exchange`. The callback could be called multiple times when `amqp-connection-manager` reestablishes connections. Additionally it will resolve to the `ChannelWrapper` provided by `amqp-connection-manager`.
+If you just want a channel to do anything with, you can call `amqp.plainChannel(exchange)` which call `channelCallback` with a channel without bindings at the `exchange`. The callback could be called multiple times when `amqp-connection-manager` reestablishes connections. Additionally it will resolve to the `ChannelWrapper` provided by `amqp-connection-manager`.
 
 ## Usage Example
 

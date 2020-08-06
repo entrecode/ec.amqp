@@ -55,40 +55,42 @@ async function isReachable() {
 
 async function workerQueue(queueName, exchange, bindings, handler, prefetch = 1) {
   const channelWrapper = connectionManager.createChannel({
-    async setup(channel) {
-      await channel.assertExchange(exchange, 'topic', { durable: true });
-      const { queue } = await channel.assertQueue(queueName, { durable: true });
-      channel.prefetch(prefetch);
-      await Promise.all(bindings.map((binding) => channel.bindQueue(queue, exchange, binding)));
-      channel.consume(
-        queue,
-        async (message) => {
-          if (!message) {
-            throw new Error('consumer was canceled!');
-          }
-          const event = JSON.parse(message.content.toString());
-          const properties = Object.assign({}, message.properties, { redelivered: message.fields.redelivered });
-          const ack = () => channelWrapper.ack(message);
-          const nack = (timeout = 10000, requeue = false, redirectQueue) =>
-            setTimeout(async () => {
-              if (redirectQueue) {
-                await channel.assertQueue(redirectQueue, { durable: true });
-                await channelWrapper.sendToQueue(redirectQueue, message.content, message.properties);
-              }
-              return channelWrapper.nack(message, false, requeue);
-            }, timeout);
-          try {
-            await handler(event, properties, {
-              ack,
-              nack,
-            });
-          } catch (err) {
-            console.error(err);
-            nack(10000, true);
-          }
-        },
-        { exclusive: false }
-      );
+    setup(channel) {
+      return Promise.all([
+        channel.assertExchange(exchange, 'topic', { durable: true }),
+        channel.assertQueue(queueName, { durable: true }),
+        channel.prefetch(prefetch),
+        ...bindings.map((binding) => channel.bindQueue(queueName, exchange, binding)),
+        channel.consume(
+          queueName,
+          async (message) => {
+            if (!message) {
+              throw new Error('consumer was canceled!');
+            }
+            const event = JSON.parse(message.content.toString());
+            const properties = Object.assign({}, message.properties, { redelivered: message.fields.redelivered });
+            const ack = () => channelWrapper.ack(message);
+            const nack = (timeout = 10000, requeue = false, redirectQueue) =>
+              setTimeout(async () => {
+                if (redirectQueue) {
+                  await channel.assertQueue(redirectQueue, { durable: true });
+                  await channelWrapper.sendToQueue(redirectQueue, message.content, message.properties);
+                }
+                return channelWrapper.nack(message, false, requeue);
+              }, timeout);
+            try {
+              await handler(event, properties, {
+                ack,
+                nack,
+              });
+            } catch (err) {
+              console.error(err);
+              nack(10000, true);
+            }
+          },
+          { exclusive: false }
+        ),
+      ]);
     },
   });
   return channelWrapper;
@@ -96,50 +98,50 @@ async function workerQueue(queueName, exchange, bindings, handler, prefetch = 1)
 
 async function subscribe(queueNamePrefix, exchange, bindings, handler, options = {}) {
   const channelWrapper = connectionManager.createChannel({
-    async setup(channel) {
-      await channel.assertExchange(exchange, 'topic', { durable: true });
-      const { queue } = await channel.assertQueue(`${queueNamePrefix}-${uuid()}`, { durable: false, exclusive: true });
-      await Promise.all(bindings.map((binding) => channel.bindQueue(queue, exchange, binding)));
+    setup(channel) {
+      const queueName = `${queueNamePrefix}-${uuid()}}`;
       let consumeOptions;
       if (options.noAck) {
         consumeOptions = { noAck: true };
       }
-      channel.consume(
-        queue,
-        async (message) => {
-          if (!message) {
-            throw new Error('consumer was canceled!');
-          }
-          const event = JSON.parse(message.content.toString());
-          const ack = () => channelWrapper.ack(message);
-          const nack = (timeout = 10000) =>
-            setTimeout(() => {
-              channelWrapper.nack(message);
-            }, timeout);
-          try {
-            await handler(event, message.properties, {
-              ack,
-              nack,
-            });
-          } catch (err) {
-            console.error(err);
-            nack(10000);
-          }
-        },
-        Object.assign({}, { exclusive: true }, consumeOptions)
-      );
+      return Promise.all([
+        channel.assertExchange(exchange, 'topic', { durable: true }),
+        channel.assertQueue(queueName, { durable: false, exclusive: true }),
+        ...bindings.map((binding) => channel.bindQueue(queueName, exchange, binding)),
+        channel.consume(
+          queueName,
+          async (message) => {
+            if (!message) {
+              throw new Error('consumer was canceled!');
+            }
+            const event = JSON.parse(message.content.toString());
+            const ack = () => channelWrapper.ack(message);
+            const nack = (timeout = 10000) =>
+              setTimeout(() => {
+                channelWrapper.nack(message);
+              }, timeout);
+            try {
+              await handler(event, message.properties, {
+                ack,
+                nack,
+              });
+            } catch (err) {
+              console.error(err);
+              nack(10000);
+            }
+          },
+          Object.assign({}, { exclusive: true }, consumeOptions)
+        ),
+      ]);
     },
   });
   return channelWrapper;
 }
 
-async function plainChannel(exchange, channelCallback) {
+async function plainChannel(exchange) {
   const channelWrapper = connectionManager.createChannel({
-    async setup(channel) {
-      await channel.assertExchange(exchange, 'topic', { durable: true });
-      if (channelCallback) {
-        await channelCallback(channel);
-      }
+    setup(channel) {
+      return channel.assertExchange(exchange, 'topic', { durable: true });
     },
   });
   return channelWrapper;
