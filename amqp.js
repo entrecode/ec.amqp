@@ -5,7 +5,7 @@ process.env.ALLOW_CONFIG_MUTATIONS = 'y';
 const path = require('path');
 const config = require('config');
 const amqp = require('amqp-connection-manager');
-const uuid = require('uuid/v4');
+const { v4: uuid } = require('uuid');
 
 // init default config
 const ourConfigDir = path.join(__dirname, 'config');
