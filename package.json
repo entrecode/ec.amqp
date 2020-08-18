@@ -1,6 +1,6 @@
 {
   "name": "ec.amqp",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "simple access to entrecode RabbitMQ via node.js",
   "main": "amqp.js",
   "scripts": {
@@ -18,7 +18,7 @@
   },
   "homepage": "https://github.com/entrecode/ec.amqp#readme",
   "dependencies": {
-    "amqp-connection-manager": "^3.2.0",
+    "amqp-connection-manager": "^2.3.3",
     "amqplib": "^0.6.0",
     "config": "^3.3.1",
     "js-yaml": "^3.14.0",
