@@ -138,7 +138,7 @@ async function subscribe(queueNamePrefix, exchange, bindings, handler, options =
   return channelWrapper;
 }
 
-async function plainChannel(exchange) {
+function plainChannel(exchange) {
   return connectionManager.createChannel({
     setup(channel) {
       return channel.assertExchange(exchange, 'topic', { durable: true });
