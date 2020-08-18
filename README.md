@@ -25,7 +25,7 @@ will be stringified and put in a Buffer in the function. A `messageId` and `time
 
 ### Plain Channel
 
-If you just want a channel to do anything with, you can call `amqp.plainChannel(exchange, channelCallback(channel))` which call `channelCallback` with a channel without bindings at the `exchange`. The callback could be called multiple times when `amqp-connection-manager` reestablishes connections. Additionally it will resolve to the `ChannelWrapper` provided by `amqp-connection-manager`.
+If you just want a `ChannelWrapper` to do anything you want with, you can call `amqp.plainChannel(exchange)`. This returns immediately.
 
 ## Usage Example
 
@@ -146,6 +146,10 @@ returns `true` if amqp is connected, throws an Error otherwise.
 reference to the underlying amqp-connection-manager object. Only for legacy adaptors. 
 
 # Changelog
+
+## 0.8.0
+- channel setup with recommended parallel promises
+- BREAKING: removed callback from `#plainChannel(exchange)`
 
 ## 0.7.1
 - respect `active: false` in config
