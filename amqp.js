@@ -139,16 +139,15 @@ async function subscribe(queueNamePrefix, exchange, bindings, handler, options =
 }
 
 async function plainChannel(exchange) {
-  const channelWrapper = connectionManager.createChannel({
+  return connectionManager.createChannel({
     setup(channel) {
       return channel.assertExchange(exchange, 'topic', { durable: true });
     },
   });
-  return channelWrapper;
 }
 
 async function publishChannel(exchange) {
-  const channelWrapper = await plainChannel(exchange);
+  const channelWrapper = plainChannel(exchange);
   return async function publish(routingKey, content, type, appID, options) {
     return channelWrapper.publish(
       exchange,
