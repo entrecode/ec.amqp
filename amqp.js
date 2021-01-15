@@ -138,16 +138,20 @@ async function subscribe(queueNamePrefix, exchange, bindings, handler, options =
   return channelWrapper;
 }
 
-function plainChannel(exchange) {
+function plainChannel(exchange, exchangeType = 'topic') {
+  if (typeof exchangeType === 'function') {
+    console.error('plainChannel `channelCallback` has been removed in v0.8.0');
+    exchangeType = 'topic';
+  }
   return connectionManager.createChannel({
     setup(channel) {
-      return channel.assertExchange(exchange, 'topic', { durable: true });
+      return channel.assertExchange(exchange, exchangeType, { durable: true });
     },
   });
 }
 
-async function publishChannel(exchange) {
-  const channelWrapper = plainChannel(exchange);
+async function publishChannel(exchange, exchangeType) {
+  const channelWrapper = plainChannel(exchange, exchangeType);
   return async function publish(routingKey, content, type, appID, options) {
     return channelWrapper.publish(
       exchange,

@@ -22,10 +22,11 @@ Events are in an exclusive queue per process. The queue is non-persisting and on
 
 To publish messages, call `amqp.publishChannel(exchange)`. You'll get back an async function `publish(routingKey, content, type, appID, options)`. This is a helper function for publishing messages. `content` is expected to be JSON which
 will be stringified and put in a Buffer in the function. A `messageId` and `timestamp` will be generated automatically. `type`, `appID` and `options` are optional. 
+The exchange type can be set optionally: `amqp.publishChannel(exchange, 'fanout')` (default is `topic`).
 
 ### Plain Channel
 
-If you just want a `ChannelWrapper` to do anything you want with, you can call `amqp.plainChannel(exchange)`. This returns immediately.
+If you just want a `ChannelWrapper` to do anything you want with, you can call `amqp.plainChannel(exchange)`. This returns immediately. The exchange type can be set optionally: `amqp.plainChannel(exchange, 'fanout')` (default is `topic`).
 
 ## Usage Example
 
@@ -147,6 +148,10 @@ reference to the underlying amqp-connection-manager object. Only for legacy adap
 
 # Changelog
 
+## 0.8.2
+- added exchange type option for plain channels and publish channels
+## 0.8.1
+- dependency update
 ## 0.8.0
 - channel setup with recommended parallel promises
 - BREAKING: removed callback from `#plainChannel(exchange)`
