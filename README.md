@@ -148,6 +148,8 @@ reference to the underlying amqp-connection-manager object. Only for legacy adap
 
 # Changelog
 
+## 0.9.0
+- BREAKING: drop support for node 6 and node 8 (because of [amqp-connection-manager@3](https://github.com/jwalton/node-amqp-connection-manager/blob/master/CHANGELOG.md#300-2019-07-04) - it probably still works)
 ## 0.8.2
 - added exchange type and durable options for plain channels and publish channels
 ## 0.8.1
