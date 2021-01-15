@@ -149,7 +149,7 @@ reference to the underlying amqp-connection-manager object. Only for legacy adap
 # Changelog
 
 ## 0.8.2
-- added exchange type option for plain channels and publish channels
+- added exchange type and durable options for plain channels and publish channels
 ## 0.8.1
 - dependency update
 ## 0.8.0
