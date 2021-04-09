@@ -38,7 +38,7 @@ if (process.env.NODE_ENV === 'testing' || (config.has('amqp.active') && config.g
 } else {
   let clientProperties;
   if (process.env.HOSTNAME) {
-    clientProperties = { connection_name: `${process.env.HOSTNAME}-${process.pid}` };
+    clientProperties = { connection_name: `${process.env.HOSTNAME}-${process.pid}`, product: `amqplib (${process.env.HOSTNAME}-${process.pid})` };
   }
   connectionManager = amqp.connect(connectionURLs, { json: true, clientProperties });
   connectionManager.on('connect', (c) => {
