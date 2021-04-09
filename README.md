@@ -124,11 +124,16 @@ You can overwrite the config by providing a node-config in your app:
 amqp:
   active: true
   user: search
-  password: search
+  password: secret
   hosts:
     - host-1
     - host-2
+  heartbeatIntervalInSeconds: 10
+  reconnectTimeInSeconds: 5
 ```
+
+The last 2 values can also be set via env variables `AMQP_HEARTBEAT_INTERVAL_IN_SECONDS` and `AMQP_RECONNECT_TIME_IN_SECONDS`.
+
 User and password are required, uses "guest" otherwise.
 Hosts are permuted automatically.
 
