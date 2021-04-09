@@ -26,6 +26,7 @@ const connectionURLs = shuffleArray(
   config.get('amqp.hosts').map((host) => `amqp://${connectionUser}:${connectionPassword}@${host}`)
 );
 
+let neverConnected = true;
 let connectionManager;
 if (process.env.NODE_ENV === 'testing' || (config.has('amqp.active') && config.get('amqp.active') === false)) {
   connectionManager = {
@@ -35,10 +36,17 @@ if (process.env.NODE_ENV === 'testing' || (config.has('amqp.active') && config.g
   };
   console.warn('ec.amqp is in testing mode and not attempting to connect to RabbitMQ.');
 } else {
-  connectionManager = amqp.connect(connectionURLs, { json: true });
-  connectionManager.on('connect', (c) => console.log(`amqp connected to ${c.url}`));
+  let clientProperties;
+  if (process.env.HOSTNAME) {
+    clientProperties = { connection_name: `${process.env.HOSTNAME}-${process.pid}` };
+  }
+  connectionManager = amqp.connect(connectionURLs, { json: true, clientProperties });
+  connectionManager.on('connect', (c) => {
+    console.log(`amqp connected to ${c.url} (${clientProperties ? clientProperties.connection_name : 'no hostname'})`);
+    neverConnected = false;
+  });
   connectionManager.on('disconnect', ({ err }) => {
-    console.warn(`amqp disconnected (${config.get('amqp.hosts').join('|')})`);
+    console.warn(`amqp disconnected (${config.get('amqp.hosts').join('|')}) (${clientProperties ? clientProperties.connection_name : 'no hostname'})`);
 
     if (err) {
       console.warn(`amqp disconnect reason: ${err.message} ${err.stack} ${JSON.stringify(err)}`);
@@ -49,6 +57,13 @@ if (process.env.NODE_ENV === 'testing' || (config.has('amqp.active') && config.g
 async function isReachable() {
   if (connectionManager.isConnected()) {
     return true;
+  }
+  if (neverConnected) {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    if (connectionManager.isConnected()) {
+      return true;
+    }
+    throw new Error('amqp did not connect yet');
   }
   throw new Error('amqp is not connected');
 }
