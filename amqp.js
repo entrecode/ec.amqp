@@ -6,6 +6,7 @@ const path = require('path');
 const config = require('config');
 const amqp = require('amqp-connection-manager');
 const { v4: uuid } = require('uuid');
+const { name: product, version } = require('./package.json');
 
 // init default config
 const ourConfigDir = path.join(__dirname, 'config');
@@ -40,13 +41,14 @@ if (process.env.NODE_ENV === 'testing' || (config.has('amqp.active') && config.g
   if (process.env.HOSTNAME) {
     clientProperties = {
       connection_name: `${process.env.HOSTNAME}-${process.pid}`,
-      product: `amqplib (${process.env.HOSTNAME}-${process.pid})`,
+      product,
+      version,
     };
   }
   connectionManager = amqp.connect(connectionURLs, {
     json: true,
-    heartbeatIntervalInSeconds: 10,
-    reconnectTimeInSeconds: 5,
+    heartbeatIntervalInSeconds: config.get('amqp.heartbeatIntervalInSeconds'),
+    reconnectTimeInSeconds: config.get('amqp.reconnectTimeInSeconds'),
     connectionOptions: {
       clientProperties,
     },

@@ -2,3 +2,5 @@ user: guest
 password: guest
 hosts: 
   - localhost
+heartbeatIntervalInSeconds: 10
+reconnectTimeInSeconds: 5
