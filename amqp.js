@@ -38,15 +38,29 @@ if (process.env.NODE_ENV === 'testing' || (config.has('amqp.active') && config.g
 } else {
   let clientProperties;
   if (process.env.HOSTNAME) {
-    clientProperties = { connection_name: `${process.env.HOSTNAME}-${process.pid}`, product: `amqplib (${process.env.HOSTNAME}-${process.pid})` };
+    clientProperties = {
+      connection_name: `${process.env.HOSTNAME}-${process.pid}`,
+      product: `amqplib (${process.env.HOSTNAME}-${process.pid})`,
+    };
   }
-  connectionManager = amqp.connect(connectionURLs, { json: true, clientProperties });
+  connectionManager = amqp.connect(connectionURLs, {
+    json: true,
+    heartbeatIntervalInSeconds: 10,
+    reconnectTimeInSeconds: 5,
+    connectionOptions: {
+      clientProperties,
+    },
+  });
   connectionManager.on('connect', (c) => {
     console.log(`amqp connected to ${c.url} (${clientProperties ? clientProperties.connection_name : 'no hostname'})`);
     neverConnected = false;
   });
   connectionManager.on('disconnect', ({ err }) => {
-    console.warn(`amqp disconnected (${config.get('amqp.hosts').join('|')}) (${clientProperties ? clientProperties.connection_name : 'no hostname'})`);
+    console.warn(
+      `amqp disconnected (${config.get('amqp.hosts').join('|')}) (${
+        clientProperties ? clientProperties.connection_name : 'no hostname'
+      })`
+    );
 
     if (err) {
       console.warn(`amqp disconnect reason: ${err.message} ${err.stack} ${JSON.stringify(err)}`);
