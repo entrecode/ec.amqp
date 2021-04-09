@@ -124,11 +124,16 @@ You can overwrite the config by providing a node-config in your app:
 amqp:
   active: true
   user: search
-  password: search
+  password: secret
   hosts:
     - host-1
     - host-2
+  heartbeatIntervalInSeconds: 10
+  reconnectTimeInSeconds: 5
 ```
+
+The last 2 values can also be set via env variables `AMQP_HEARTBEAT_INTERVAL_IN_SECONDS` and `AMQP_RECONNECT_TIME_IN_SECONDS`.
+
 User and password are required, uses "guest" otherwise.
 Hosts are permuted automatically.
 
@@ -148,6 +153,11 @@ reference to the underlying amqp-connection-manager object. Only for legacy adap
 
 # Changelog
 
+## 0.9.1
+- make `heartbeatIntervalInSeconds` and `reconnectTimeInSeconds` settable, using config or env variables
+- write hostname and pid in `connection_name` field in RabbitMQ for better recognition of connections
+- set product and version in RabbitMQ connection metadata to ec.amqp values
+- update amqplib
 ## 0.9.0
 - BREAKING: drop support for node 6 and node 8 (because of [amqp-connection-manager@3](https://github.com/jwalton/node-amqp-connection-manager/blob/master/CHANGELOG.md#300-2019-07-04) - it probably still works)
 ## 0.8.2
