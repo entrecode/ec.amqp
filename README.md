@@ -153,6 +153,9 @@ reference to the underlying amqp-connection-manager object. Only for legacy adap
 
 # Changelog
 
+## 0.10.0
+- dependency update
+
 ## 0.9.1
 - make `heartbeatIntervalInSeconds` and `reconnectTimeInSeconds` settable, using config or env variables
 - write hostname and pid in `connection_name` field in RabbitMQ for better recognition of connections
