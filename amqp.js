@@ -37,6 +37,8 @@ if (process.env.NODE_ENV === 'testing' || (config.has('amqp.active') && config.g
   };
   console.warn('ec.amqp is in testing mode and not attempting to connect to RabbitMQ.');
 } else {
+  console.log('ec.amqp is trying to connect...', JSON.stringify({ connectionURLs }));
+
   let clientProperties;
   if (process.env.HOSTNAME) {
     clientProperties = {
