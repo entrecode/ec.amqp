@@ -45,7 +45,7 @@ amqp.workerQueue(
     const eventType = properties.type;
     // event is parsed payload
     ack(); // always call ack() or nack()
-    nack(10000) // call nack after timeout of 10 seconds. This is also the default. Second parameter requeue, third parameter redirect queue (for dead-letter queues)
+    nack(10000) // call nack after timeout of 10 seconds. This is also the default. Second parameter requeue (default is `false` in contrast to amqplib native behavior), third parameter redirect queue (for dead-letter queues)
   },
   1 // prefetch (default 1)
 );
@@ -153,6 +153,9 @@ returns `true` if amqp is connected, throws an Error otherwise.
 reference to the underlying amqp-connection-manager object. Only for legacy adaptors. 
 
 # Changelog
+
+## 0.10.0
+- dependency update
 
 ## 0.9.1
 - make `heartbeatIntervalInSeconds` and `reconnectTimeInSeconds` settable, using config or env variables
