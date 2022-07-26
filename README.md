@@ -132,7 +132,8 @@ amqp:
   reconnectTimeInSeconds: 5
 ```
 
-The last 2 values can also be set via env variables `AMQP_HEARTBEAT_INTERVAL_IN_SECONDS` and `AMQP_RECONNECT_TIME_IN_SECONDS`.
+All values can also be set as environment variables, like `AMQP_HEARTBEAT_INTERVAL_IN_SECONDS` and `AMQP_RECONNECT_TIME_IN_SECONDS`.
+See [./config/custom-environment-variables.yml](./config/custom-environment-variables.yml) for details.
 
 User and password are required, uses "guest" otherwise.
 Hosts are permuted automatically.
