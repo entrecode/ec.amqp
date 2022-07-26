@@ -154,6 +154,9 @@ reference to the underlying amqp-connection-manager object. Only for legacy adap
 
 # Changelog
 
+## 0.10.1
+- make all config settable als env variables, for easy usage with Next.js projects
+
 ## 0.10.0
 - dependency update
 
