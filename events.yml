@@ -1,0 +1,195 @@
+asyncapi: 2.4.0
+info:
+  title: ec.amqp
+  version: 1.0.0
+servers:
+  production:
+    url: cluster1.entrecode.de
+    protocol: amqp
+    description: This is the entrecode RabbitMQ broker.
+  stage: 
+    url: cluster1.cachena.entrecode.de
+    protocol: amqp
+    description: This is the entrecode RabbitMQ broker, staging version.
+channels:
+  /{shortID}/{modelTitle}/{entryID}/entryCreated:
+    parameters:
+      shortID:
+        description: Short ID of the data manager
+        schema: 
+          $ref: "#/components/messages/PublicAPIEntryEvent/payload/properties/shortID"
+      modelTitle:
+        description: Title of the model
+        schema: 
+          $ref: "#/components/messages/PublicAPIEntryEvent/payload/properties/modelTitle"
+      entryID:
+        description: ID of the entry
+        schema: 
+          $ref: "#/components/messages/PublicAPIEntryEvent/payload/properties/entryID"
+    subscribe:
+      operationId: entryCreatedSub
+      description: a new entry was created
+      message:
+        $ref: "#/components/messages/PublicAPIEntryEvent"
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: publicAPI
+          type: topic
+          durable: true
+          vhost: /
+  /{shortID}/{modelTitle}/{entryID}/entryUpdated:
+    parameters:
+      shortID:
+        description: Short ID of the data manager
+        schema: 
+          $ref: "#/components/messages/PublicAPIEntryEvent/payload/properties/shortID"
+      modelTitle:
+        description: Title of the model
+        schema: 
+          $ref: "#/components/messages/PublicAPIEntryEvent/payload/properties/modelTitle"
+      entryID:
+        description: ID of the entry
+        schema: 
+          $ref: "#/components/messages/PublicAPIEntryEvent/payload/properties/entryID"
+    subscribe:
+      operationId: entryUpdatedSub
+      description: an entry was updated
+      message:
+        $ref: "#/components/messages/PublicAPIEntryEvent"
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: publicAPI
+          type: topic
+          durable: true
+          vhost: /
+  /{shortID}/{modelTitle}/{entryID}/entryDeleted:
+    parameters:
+      shortID:
+        description: Short ID of the data manager
+        schema: 
+          $ref: "#/components/messages/PublicAPIEntryEvent/payload/properties/shortID"
+      modelTitle:
+        description: Title of the model
+        schema: 
+          $ref: "#/components/messages/PublicAPIEntryEvent/payload/properties/modelTitle"
+      entryID:
+        description: ID of the entry
+        schema: 
+          $ref: "#/components/messages/PublicAPIEntryEvent/payload/properties/entryID"
+    subscribe:
+      operationId: entryDeletedSub
+      description: an entry was updated
+      message:
+        $ref: "#/components/messages/PublicAPIEntryEvent"
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: publicAPI
+          type: topic
+          durable: true
+          vhost: /
+  # TODO sendMail, sendPush, ...
+  user/signedup:
+    subscribe:
+      message:
+        $ref: '#/components/messages/PublicAPIEntryEvent'
+    publish:
+      bindings:
+        amqp:
+          expiration: 100000
+          userId: guest
+          cc: ['user.logs']
+          priority: 10
+          deliveryMode: 2
+          mandatory: false
+          bcc: ['external.audit']
+          replyTo: user.signedup
+          timestamp: true
+          ack: false
+          bindingVersion: 0.2.0
+    bindings:
+      amqp:
+        is: routingKey
+        queue:
+          name: my-queue-name
+          durable: true
+          exclusive: true
+          autoDelete: false
+          vhost: /
+        exchange:
+          name: myExchange
+          type: topic
+          durable: true
+          autoDelete: false
+          vhost: /
+        bindingVersion: 0.2.0
+components:
+  messages:
+    PublicAPIEntryEvent:
+      headers:
+        type: object
+        # TODO
+      payload:
+        type: object
+        properties:
+          entryID: 
+            type: string
+            description: ID of the entry
+            pattern: ^[0-9A-Za-z-_]{7,14}$
+          modelID: 
+            type: string
+            format: uuid
+            description: ID of the model
+          modelTitle: 
+            type: string
+            description: Title of the model          
+          dataManagerID: 
+            type: string
+            format: uuid
+            description: ID of the data manager
+          shortID:
+            type: string
+            pattern: ^[0-9a-f]{8}$
+            description: Short ID of the data manager
+          data:
+            type: object
+            description: entry content
+            properties:
+              "_creator":
+                type: string
+                format: uuid
+                description: ID of the creator
+                nullable: true
+            additionalProperties: true
+          oldEntryData:
+            type: object
+            description: old entry content, on entryUpdated events
+            additionalProperties: true
+          entryAndAssetRelations: 
+            type: array
+            items:
+              type: object
+          roleRelations: 
+            type: array
+            items:
+              type: object
+          uniqueFields: 
+            type: array
+            items:
+              type: object
+          user: 
+            type: object
+            properties:
+              accountID: 
+                type: string
+                format: uuid
+              userType: 
+                type: string
+          modified: 
+            type: string
+            format: datetime
