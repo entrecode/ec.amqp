@@ -93,7 +93,50 @@ channels:
           type: topic
           durable: true
           vhost: /
-  # TODO sendMail, sendPush, ...
+  /{shortID}/_auth/{accountID}/loggedIn:
+    parameters:
+      shortID:
+        description: Short ID of the data manager
+        schema: 
+          $ref: "#/components/messages/PublicAPIEntryEvent/payload/properties/shortID"
+      accountID:
+        description: Data Manager User Account ID
+        schema: 
+          type: string
+          format: uuid
+    subscribe:
+      operationId: loggedInSub
+      description: a DM User has logged in / got a new access token
+      message:
+        $ref: "#/components/messages/PublicAPIUserLoggedInEvent"
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: publicAPI
+          type: topic
+          durable: true
+          vhost: /
+  #/{shortID}/_assets/{assetGroupID}/{assetID}/assetCreated
+  #/{shortID}/_assets/{assetGroupID}/{assetID}/assetUpdated
+  #/{shortID}/_assets/{assetGroupID}/{assetID≠/assetDeleted
+  #/{dataManagerID}/datamanagerCreated
+  #/{dataManagerID}/datamanagerUpdated
+  #/{dataManagerID}/{modelID}/modelCreated
+  #/{dataManagerID}/{modelID}/modelUpdated
+  #/{dataManagerID}/{modelID}/modelDeleted
+  #/{dataManagerID}/{assetGroupID}/assetgroupCreated
+  #/{dataManagerID}/{assetGroupID}/assetgroupUpdated
+  #/{dataManagerID}/account/${accountID}/deleted
+  #/cmd/sendMail/mailgun/{domain}
+  #/cmd/sendPush/hector/{appsiteID}
+  #appserverBuildEvents
+  #appserverBuild
+  #ecAuthNotifications
+  #dealbunny
+  #ec.tasks
+  #dsb-eva
+  #expopush
   user/signedup:
     subscribe:
       message:
@@ -133,7 +176,25 @@ components:
     PublicAPIEntryEvent:
       headers:
         type: object
-        # TODO
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          type: 
+            type: string
+            default: 'entryUpdated'
+          appId:
+            type: string
+            description: shortID
+          timestamp:
+            type: string
+            format: datetime
       payload:
         type: object
         properties:
@@ -193,3 +254,35 @@ components:
           modified: 
             type: string
             format: datetime
+    PublicAPIUserLoggedInEvent:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          type: 
+            type: string
+            default: 'loggedIn'
+          appId:
+            type: string
+            description: shortID
+          timestamp:
+            type: string
+            format: datetime
+      payload:
+        type: object
+        properties:
+          accountID: 
+            type: string
+            format: uuid
+          issued: 
+            type: number
+          validUntil:
+            type: number
