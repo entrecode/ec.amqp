@@ -13,7 +13,9 @@ servers:
     description: This is the entrecode RabbitMQ broker, staging version.
 tags:
   - name: PublicAPI
-    description: Events from the Data Manager Public API
+    description: Events from the Data Manager Public API (Exchange `PublicAPI``)
+  - name: DataManager
+    description: Events from the Data Manager API (Exchange `ecAPI`)
 channels:
   /{shortID}/{modelTitle}/{entryID}/{entryEventType}:
     parameters:
@@ -77,7 +79,7 @@ channels:
       - name: PublicAPI
       description: an asset was created, updated or deleted.
       message:
-        $ref: "#/components/messages/PublicAPIEntryEvent"
+        $ref: "#/components/messages/PublicAPIAssetEvent"
     bindings:
       amqp:
         is: routingKey
@@ -112,14 +114,121 @@ channels:
           type: topic
           durable: true
           vhost: /
-  #/{dataManagerID}/datamanagerCreated
-  #/{dataManagerID}/datamanagerUpdated
-  #/{dataManagerID}/{modelID}/modelCreated
-  #/{dataManagerID}/{modelID}/modelUpdated
-  #/{dataManagerID}/{modelID}/modelDeleted
-  #/{dataManagerID}/{assetGroupID}/assetgroupCreated
-  #/{dataManagerID}/{assetGroupID}/assetgroupUpdated
-  #/{dataManagerID}/account/${accountID}/deleted
+  /{dataManagerID}/{dataManagerEventType}:
+    parameters:
+      dataManagerID:
+        description: UUID of the Data Manager
+        schema: 
+          $ref: "#/components/messages/ecAPIDataManagerEvent/payload/properties/dataManagerID"
+      dataManagerEventType:
+        description: type of the dm event. *There is no event for Deletion!*
+        schema:
+          enum:
+          - datamanagerCreated
+          - datamanagerUpdated
+    subscribe:
+      operationId: datamanagerSub
+      tags:
+      - name: DataManager
+      description: a data manager was created or updated.
+      message:
+        $ref: "#/components/messages/ecAPIDataManagerEvent"
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecAPI
+          type: topic
+          durable: true
+          vhost: /
+  /{dataManagerID}/{modelID}/{modelEventType}:
+    parameters:
+      dataManagerID:
+        description: UUID of the Data Manager
+        schema: 
+          $ref: "#/components/messages/ecAPIModelEvent/payload/properties/dataManagerID"
+      modelID:
+        description: UUID of the Model
+        schema: 
+          $ref: "#/components/messages/ecAPIModelEvent/payload/properties/modelID"
+      modelEventType:
+        description: type of the model event
+        schema:
+          enum:
+          - modelCreated
+          - modelUpdated
+          - modelDeleted
+    subscribe:
+      operationId: modelSub
+      tags:
+      - name: DataManager
+      description: a model was created, updated or deleted.
+      message:
+        $ref: "#/components/messages/ecAPIModelEvent"
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecAPI
+          type: topic
+          durable: true
+          vhost: /
+  /{dataManagerID}/{assetGroupID}/{assetgroupEventType}:
+    parameters:
+      dataManagerID:
+        description: UUID of the Data Manager
+        schema: 
+          $ref: "#/components/messages/ecAPIModelEvent/payload/properties/dataManagerID"
+      assetGroupID:
+        description: ID/title of the assetgroup
+        schema: 
+          $ref: "#/components/messages/ecAPIAssetGroupEvent/payload/properties/assetGroup/properties/assetGroupID"
+      assetgroupEventType:
+        description: type of the assetgroup event
+        schema:
+          enum:
+          - assetgroupCreated
+          - assetgroupUpdated
+    subscribe:
+      operationId: assetgroupSub
+      tags:
+      - name: DataManager
+      description: an assetgroup was created or updated.
+      message:
+        $ref: "#/components/messages/ecAPIAssetGroupEvent"
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecAPI
+          type: topic
+          durable: true
+          vhost: /
+  /{dataManagerID}/account/{accountID}/deleted:
+    parameters:
+      dataManagerID:
+        description: UUID of the Data Manager
+        schema: 
+          $ref: "#/components/messages/ecAPIAccountEvent/payload/properties/dataManagerID"
+      accountID:
+        description: ID/title of the assetgroup
+        schema: 
+          $ref: "#/components/messages/ecAPIAccountEvent/payload/properties/accountID"
+    subscribe:
+      operationId: accountSub
+      tags:
+      - name: DataManager
+      description: an DM Account was deleted<br> Note that there are currently no events for created or updated DM Accounts. <br> Also, there are no events for ec.AccountServer Accounts (ec-Accounts).
+      message:
+        $ref: "#/components/messages/ecAPIAccountEvent"
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecAPI
+          type: topic
+          durable: true
+          vhost: /
   #/cmd/sendMail/mailgun/{domain}
   #/cmd/sendPush/hector/{appsiteID}
   #appserverBuildEvents
@@ -403,3 +512,236 @@ components:
             type: number
           validUntil:
             type: number
+    ecAPIDataManagerEvent:
+      description: Settings of the created or updated data manager. Note that old values are *not* available on update events.
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          type: 
+            type: string
+            default: 'datamanagerCreated'
+          appId:
+            type: string
+            format: uuid
+            description: dataManagerID
+          timestamp:
+            type: string
+            format: datetime   
+      payload:
+        type: object
+        properties: 
+          dataManagerID:
+            type: string
+            description: UUID of the Data Manager
+            format: uuid
+          shortID:
+            type: string
+            pattern: ^[0-9a-f]{8}$
+            description: Short ID of the data manager
+          title:
+            type: string
+            nullable: true
+          description:
+            type: string
+            nullable: true
+          config:
+            type: object
+          hexColor:
+            type: string
+            pattern: ^#[0-9a-f]{6}$
+          defaultLocale:
+            type: string
+            nullable: true
+          locales:
+            type: array
+          publicAssetRights:
+            type: array
+          customerID:
+            nullable: true
+          dbhost:
+            nullable: true
+    ecAPIModelEvent:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          type: 
+            type: string
+            default: 'modelCreated'
+          appId:
+            type: string
+            format: uuid
+            description: dataManagerID
+          timestamp:
+            type: string
+            format: datetime   
+      payload:
+        type: object
+        properties: 
+          modelID:
+            type: string
+            description: UUID of the Model
+            format: uuid
+          title:
+            type: string
+            nullable: true
+          description:
+            type: string
+            nullable: true
+          hexColor:
+            type: string
+            pattern: ^#[0-9a-f]{6}$
+          titleField:
+            type: string
+          fields:
+            type: array
+            items: 
+              type: object
+          locales:
+            type: array
+          hooks:
+            type: array
+          sync:
+            type: array
+            nullable: true
+          config:
+            type: object
+          dataManagerID:
+            type: string
+            description: UUID of the Data Manager
+            format: uuid
+          shortID:
+            type: string
+            pattern: ^[0-9a-f]{8}$
+            description: Short ID of the data manager
+    ecAPIAssetGroupEvent:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          type: 
+            type: string
+            default: 'assetgroupCreated'
+          appId:
+            type: string
+            format: uuid
+            description: dataManagerID
+          timestamp:
+            type: string
+            format: datetime   
+      payload:
+        type: object
+        properties: 
+          accountID: 
+            type: string
+            description: accountID of the user who triggered this event
+            format: uuid
+          assetGroup: 
+            type: object
+            description: full created assetgroup object (only on `assetgroupCreated` events)
+            properties:
+              assetGroupID:
+                description: The unique ID of the asset group (and also the name)
+                type": string
+                minLength: 1
+                maxLength: 32
+                pattern: ^((?!^image$|^video$|^audio$|^plain$|^document$|^spreadsheet$|^archive$)[a-z0-9_-]{1,32})$
+              public:
+                description: Read-only field indicating if assets in this group are generally public
+                type: boolean
+              settings:
+                type: object
+              policies:
+                type: array
+                items: 
+                  type: object 
+          updatedValues:
+            description: updated values of the assetgroup (only on `assetgroupUpdated` events)
+            type: object
+            settings:
+                type: object
+            policies:
+              type: array
+              items: 
+                type: object
+          oldValues:
+            description: previous values of updated assetgroup values (only on `assetgroupUpdated` events)
+            type: object
+            settings:
+                type: object
+            policies:
+              type: array
+              items: 
+                type: object
+    ecAPIAccountEvent:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          type: 
+            type: string
+            default: 'accountDeleted'
+          appId:
+            type: string
+            format: uuid
+            description: dataManagerID
+          timestamp:
+            type: string
+            format: datetime   
+      payload:
+        type: object
+        properties: 
+          accountID: 
+            type: string
+            description: accountID of the deleted account
+            format: uuid
+          dataManagerID:
+            type: string
+            description: UUID of the Data Manager
+            format: uuid
+          email:
+            type: string
+            format: email
+            nullable: true
+          pending:
+            type: boolean
+          created:
+            type: string
+            format: datetime
+          pendingUpdated:
+            type: string
+            format: datetime
+         
