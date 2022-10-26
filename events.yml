@@ -16,6 +16,8 @@ tags:
     description: Events from the Data Manager Public API (Exchange `PublicAPI``)
   - name: DataManager
     description: Events from the Data Manager API (Exchange `ecAPI`)
+  - name: Mail/Push Commands
+    description: Commands to send E-Mails or Push Notifications
 channels:
   /{shortID}/{modelTitle}/{entryID}/{entryEventType}:
     parameters:
@@ -229,8 +231,52 @@ channels:
           type: topic
           durable: true
           vhost: /
-  #/cmd/sendMail/mailgun/{domain}
-  #/cmd/sendPush/hector/{appsiteID}
+  /cmd/sendMail/mailgun/{domain}:
+    parameters:
+      domain:
+        description: mail domain to use
+        schema: 
+          $ref: "#/components/messages/MailMailgunCommand/payload/properties/domain"
+    publish:
+      operationId: sendMailMailgunPub
+      tags:
+      - name: Mail/Push Commands
+      description: send an E-Mail via ec.mail (mailgun)
+      message:
+        $ref: "#/components/messages/MailMailgunCommand"
+      bindings:
+        amqp:
+          persistent: true
+          timestamp: true
+          ack: true
+          exchange:
+            name: mail
+            type: topic
+            durable: true
+            vhost: /
+  /cmd/sendPush/hector/{appsiteID}:
+    parameters:
+      appsiteID:
+        description: appsiteID to use (for firebase config)
+        schema: 
+          $ref: "#/components/messages/PushHectorCommand/payload/properties/appsiteID"
+    publish:
+      operationId: sendPushHectorPub
+      tags:
+      - name: Mail/Push Commands
+      description: send a push notification for Hector Appsites via Firebase
+      message:
+        $ref: "#/components/messages/PushHectorCommand"
+      bindings:
+        amqp:
+          persistent: true
+          timestamp: true
+          ack: true
+          exchange:
+            name: mail
+            type: topic
+            durable: true
+            vhost: /
   #appserverBuildEvents
   #appserverBuild
   #ecAuthNotifications
@@ -238,40 +284,6 @@ channels:
   #ec.tasks
   #dsb-eva
   #expopush
-  user/signedup/example:
-    subscribe:
-      message:
-        $ref: '#/components/messages/PublicAPIEntryEvent'
-    publish:
-      bindings:
-        amqp:
-          expiration: 100000
-          userId: guest
-          cc: ['user.logs']
-          priority: 10
-          deliveryMode: 2
-          mandatory: false
-          bcc: ['external.audit']
-          replyTo: user.signedup
-          timestamp: true
-          ack: false
-          bindingVersion: 0.2.0
-    bindings:
-      amqp:
-        is: routingKey
-        queue:
-          name: my-queue-name
-          durable: true
-          exclusive: true
-          autoDelete: false
-          vhost: /
-        exchange:
-          name: myExchange
-          type: topic
-          durable: true
-          autoDelete: false
-          vhost: /
-        bindingVersion: 0.2.0
 components:
   messages:
     PublicAPIEntryEvent:
@@ -744,4 +756,162 @@ components:
           pendingUpdated:
             type: string
             format: datetime
-         
+    MailMailgunCommand:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          type: 
+            type: string
+            default: 'cmd.sendMail'
+          appId:
+            type: string
+            description: domain
+          timestamp:
+            type: number
+      payload:
+        type: object
+        properties: 
+          mail:
+            type: object
+            properties:
+              to:
+                default: "undisclosed-recipients:; <no-reply@${domain}>"
+                oneOf:
+                - type: string
+                  description: Recipient(s) in mailgun-compatible format
+                  example: 'Reci Pient <recipient@somewhere.com>'
+                - type: array
+                  items:
+                    type: string
+                    description: Recipient(s) in mailgun-compatible format
+                    example: 'Reci Pient <recipient@somewhere.com>'
+              cc:
+                oneOf:
+                - type: string
+                  description: Recipient(s) in mailgun-compatible format
+                  example: 'Reci Pient <recipient@somewhere.com>'
+                - type: array
+                  items:
+                    type: string
+                    description: Recipient(s) in mailgun-compatible format
+                    example: 'Reci Pient <recipient@somewhere.com>'
+              bcc:
+                oneOf:
+                - type: string
+                  description: Recipient(s) in mailgun-compatible format
+                  example: 'Reci Pient <recipient@somewhere.com>'
+                - type: array
+                  items:
+                    type: string
+                    description: Recipient(s) in mailgun-compatible format
+                    example: 'Reci Pient <recipient@somewhere.com>'
+              from:
+                type: string
+                description: Sender address in mailgun-compatible format. Domain part must be equal to domain.
+                example: 'entrecode <ec.mail@entrecode.de>'
+              'h:Reply-To':
+                type: string
+                description: Reply-To address in mailgun-compatible format
+                example: 'Reci Pient <recipient@somewhere.com>'
+              subject:
+                type: string
+                description: mail subject
+              text: 
+                type: string
+                description: plain text content. Can be omitted if `html` is set, because it is then generated out of the html content.
+              html:
+                type: string
+                description: main mail content as html. CSS etc. will be inlined automatically.
+              attachment:
+                type: array
+                items:
+                  type: string
+                  format: uri
+              templateSet:
+                type: string
+                default: ''
+                description: ec.mail template set, default is empty string (no template set)
+              template:
+                type: string
+                description: ec.mail template name, do not use together with `mailgunTemplate`
+              language:
+                type: string
+                description: language identifier, if using ec.mail templates
+              data: 
+                type: object
+                description: variable data for ec.mail templates
+              mailgunTemplate: 
+                type: string
+                description: native mailgun template name, do not use together with ec.mail templates.
+              'h:X-Mailgun-Variables':
+                type: string
+                description: 'if using `mailgunTemplate`: a valid JSON-encoded dictionary used as the input for template variable expansion'
+              'o:tag':
+                type: string
+              'o:deliverytime':
+                description: 'Desired time of delivery. Note: Messages can be scheduled for a maximum of 3 days in the future.'
+                type: string
+                example: 'Thu, 13 Oct 2025 18:02:00 +0000'
+          domain: 
+            type: string
+            default: 'entrecode.de'
+    PushHectorCommand:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          type: 
+            type: string
+            default: 'cmd.sendPush'
+          appId:
+            type: string
+            description: appsiteID
+          timestamp:
+            type: number
+      payload:
+        type: object
+        properties: 
+          appsiteID:
+            type: string
+            format: uuid
+          notification: 
+            properties:
+              title: 
+                type: string
+              body:
+                type: string
+              bodyLong:
+                type: string
+                description: for longer message in firebase db
+              messageType:
+                type: string
+              data:
+                type: object
+              from:
+                type: string
+              fromCustomerId:
+                type: string
+            required:
+            - title
+          accountIDs:
+            type: array
+            items:
+              type: string
+              format: uuid
