@@ -11,8 +11,11 @@ servers:
     url: cluster1.cachena.entrecode.de
     protocol: amqp
     description: This is the entrecode RabbitMQ broker, staging version.
+tags:
+  - name: PublicAPI
+    description: Events from the Data Manager Public API
 channels:
-  /{shortID}/{modelTitle}/{entryID}/entryCreated:
+  /{shortID}/{modelTitle}/{entryID}/{entryEventType}:
     parameters:
       shortID:
         description: Short ID of the data manager
@@ -26,9 +29,18 @@ channels:
         description: ID of the entry
         schema: 
           $ref: "#/components/messages/PublicAPIEntryEvent/payload/properties/entryID"
+      entryEventType:
+        description: type of the entry event
+        schema:
+          enum:
+          - entryCreated
+          - entryUpdated
+          - entryDeleted
     subscribe:
-      operationId: entryCreatedSub
-      description: a new entry was created
+      operationId: entrySub
+      tags:
+      - name: PublicAPI
+      description: a Data Manager entry was created, updated or deleted. <br>It also contains info about which content has changed on `entryUpdated` events.
       message:
         $ref: "#/components/messages/PublicAPIEntryEvent"
     bindings:
@@ -39,50 +51,31 @@ channels:
           type: topic
           durable: true
           vhost: /
-  /{shortID}/{modelTitle}/{entryID}/entryUpdated:
+  /{shortID}/_assets/{assetGroupID}/{assetID}/{assetEventType}:
     parameters:
       shortID:
         description: Short ID of the data manager
         schema: 
           $ref: "#/components/messages/PublicAPIEntryEvent/payload/properties/shortID"
-      modelTitle:
-        description: Title of the model
+      assetGroupID:
+        description: Title of the asset Group
         schema: 
-          $ref: "#/components/messages/PublicAPIEntryEvent/payload/properties/modelTitle"
-      entryID:
+          type: string
+      assetID:
         description: ID of the entry
-        schema: 
-          $ref: "#/components/messages/PublicAPIEntryEvent/payload/properties/entryID"
+        
+      assetEventType:
+        description: type of the asset event
+        schema:
+          enum:
+          - assetCreated
+          - assetUpdated
+          - assetDeleted
     subscribe:
-      operationId: entryUpdatedSub
-      description: an entry was updated
-      message:
-        $ref: "#/components/messages/PublicAPIEntryEvent"
-    bindings:
-      amqp:
-        is: routingKey
-        exchange:
-          name: publicAPI
-          type: topic
-          durable: true
-          vhost: /
-  /{shortID}/{modelTitle}/{entryID}/entryDeleted:
-    parameters:
-      shortID:
-        description: Short ID of the data manager
-        schema: 
-          $ref: "#/components/messages/PublicAPIEntryEvent/payload/properties/shortID"
-      modelTitle:
-        description: Title of the model
-        schema: 
-          $ref: "#/components/messages/PublicAPIEntryEvent/payload/properties/modelTitle"
-      entryID:
-        description: ID of the entry
-        schema: 
-          $ref: "#/components/messages/PublicAPIEntryEvent/payload/properties/entryID"
-    subscribe:
-      operationId: entryDeletedSub
-      description: an entry was updated
+      operationId: assetSub
+      tags:
+      - name: PublicAPI
+      description: an asset was created, updated or deleted.
       message:
         $ref: "#/components/messages/PublicAPIEntryEvent"
     bindings:
@@ -106,6 +99,8 @@ channels:
           format: uuid
     subscribe:
       operationId: loggedInSub
+      tags:
+      - name: PublicAPI
       description: a DM User has logged in / got a new access token
       message:
         $ref: "#/components/messages/PublicAPIUserLoggedInEvent"
@@ -117,9 +112,6 @@ channels:
           type: topic
           durable: true
           vhost: /
-  #/{shortID}/_assets/{assetGroupID}/{assetID}/assetCreated
-  #/{shortID}/_assets/{assetGroupID}/{assetID}/assetUpdated
-  #/{shortID}/_assets/{assetGroupID}/{assetID≠/assetDeleted
   #/{dataManagerID}/datamanagerCreated
   #/{dataManagerID}/datamanagerUpdated
   #/{dataManagerID}/{modelID}/modelCreated
@@ -137,7 +129,7 @@ channels:
   #ec.tasks
   #dsb-eva
   #expopush
-  user/signedup:
+  user/signedup/example:
     subscribe:
       message:
         $ref: '#/components/messages/PublicAPIEntryEvent'
@@ -251,9 +243,134 @@ components:
                 format: uuid
               userType: 
                 type: string
+                enum: 
+                - publicUser
+                - dmUser
+                nullable: true
           modified: 
             type: string
             format: datetime
+    PublicAPIAssetEvent:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          type: 
+            type: string
+            default: 'assetUpdated'
+          appId:
+            type: string
+            description: shortID
+          timestamp:
+            type: string
+            format: datetime
+      payload:
+        type: object
+        properties:          
+          asset: 
+            type: object
+            description: full created asset object (only on `assetCreated`).
+            properties:
+              assetID: 
+                type: string
+                example: 'fGcaWvdPQhqkmrxvjirsIw'
+                description: ID of the asset (encoded UUID)
+              assetGroupID:
+                type: string
+                description: ID of the assetGroup, arbitrary string.
+              file:
+                type: object
+                properties:
+                  filename:
+                    type: string
+                  size:
+                    type: number
+                  resolution:
+                    type: object
+                    properties:
+                      width: 
+                        type: number
+                      height:
+                        type: number
+              duplicates:
+                type: number
+              dataManagerID:
+                type: string
+                format: uuid
+                description: ID of the data manager
+              fileVariants:
+                type: array
+                description: usually empty array because fileVariants are generated after creation
+              isUsed:
+                type: boolean
+              type: 
+                type: string
+                description: ec asset type
+                enum:
+                - image
+                - video
+                - audio
+                - plain
+                - document
+                - spreadsheet
+                - archive
+                - other
+              title:
+                type: string
+              mimetype:
+                type: string
+              creator:
+                type: string
+                format: uuid
+              creatorType:
+                type: string
+                enum: 
+                - publicUser
+                - dmUser
+                nullable: true
+              created:
+                type: string
+                format: datetime
+              thumbnails:
+                type: array
+              caption:
+                type: string
+                description: usually empty string, because it cannot be set on creation
+              hash:
+                type: string                
+            additionalProperties: true
+          assetID: 
+            type: string
+            example: 'fGcaWvdPQhqkmrxvjirsIw'
+            description: ID of the asset (encoded UUID) (not on `assetCreated`)
+          updatedValues:
+            type: object
+            description: updated values (only on `assetUpdated`)
+            additionalProperties: true
+          oldValues:
+            type: object
+            description: old values of updated values (only on `assetUpdated`)
+            additionalProperties: true
+          accountID: 
+            type: string
+            format: uuid
+          userType: 
+            type: string
+            enum: 
+            - publicUser
+            - dmUser
+            nullable: true
+        required:
+          - accountID
+          - userType
     PublicAPIUserLoggedInEvent:
       headers:
         type: object
