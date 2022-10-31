@@ -404,8 +404,27 @@ channels:
           type: fanout
           durable: true
           vhost: /
+  /eva_webhook_events/{eventType}:
+    parameters:
+      eventType:
+        schema: 
+          $ref: "#/components/messages/DSBEvaWebhookEvent/headers/properties/type"
+    subscribe:
+      operationId: dsbEvaWebhookEventSub
+      tags:
+      - name: 'Customer: DSB'
+      description: Subscribe to an DSB EVA webhook event
+      message:
+        $ref: "#/components/messages/DSBEvaWebhookEvent"
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: dsb-eva
+          type: topic
+          durable: true
+          vhost: /
   #dealbunny
-  #dsb-eva
   #expopush
 components:
   messages:
@@ -1211,4 +1230,33 @@ components:
         properties: 
           token: 
             type: string
-    
+    DSBEvaWebhookEvent:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          type: 
+            type: string
+            default: 'abo_renewed'
+            description: currently only `abo_renewed` is implemented
+          timestamp:
+            type: string
+            format: datetime   
+      payload:
+        type: object
+        properties: 
+          franchise: 
+            type: string
+            description: seoTitle
+          subject: 
+            type: string  
+            description: usually booking entryID
+  
