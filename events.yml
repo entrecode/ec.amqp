@@ -19,6 +19,10 @@ tags:
     description: Events from the Data Manager API (Exchange `ecAPI`)
   - name: Mail/Push Commands
     description: Commands to send E-Mails or Push Notifications
+  - name: AppServer
+    description: Commands and Events related to ec.AppServer and Build Worker
+  - name: Account Server Notifications
+    description: Events by ec.AccountServer on updated auth information
 channels:
   /{shortID}/{modelTitle}/{entryID}/{entryEventType}:
     parameters:
@@ -343,9 +347,40 @@ channels:
           type: topic
           durable: true
           vhost: /
-  #ecAuthNotifications
-  #dealbunny
+  /ecAuth/permissionsUpdated:
+    subscribe:
+      operationId: ecAuthPermissionsUpdated
+      tags:
+      - name: Account Server Notifications
+      description: Permissions of an ec.account were changed
+      message:
+        $ref: "#/components/messages/ecAuthPermissionsUpdated"
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecAuthNotifications
+          type: fanout
+          durable: true
+          vhost: /
+  /ecAuth/tokenRevoked:
+    subscribe:
+      operationId: ecAuthTokenRevoked
+      tags:
+      - name: Account Server Notifications
+      description: An auth token was revoked
+      message:
+        $ref: "#/components/messages/ecAuthTokenRevoked"
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecAuthNotifications
+          type: fanout
+          durable: true
+          vhost: /
   #ec.tasks
+  #dealbunny
   #dsb-eva
   #expopush
 components:
@@ -1063,3 +1098,61 @@ components:
             format: datetime
           content: 
             description: result of build or error
+    ecAuthPermissionsUpdated:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          type: 
+            type: string
+            default: 'permissionsUpdated'
+          appId:
+            type: string
+            enum:
+            - ecAuth
+          timestamp:
+            type: string
+            format: datetime   
+      payload:
+        type: object
+        properties: 
+          accountID: 
+            type: string
+            description: accountID whose permissions were changed
+            format: uuid
+    ecAuthTokenRevoked:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          type: 
+            type: string
+            default: 'tokenRevoked'
+          appId:
+            type: string
+            enum:
+            - ecAuth
+          timestamp:
+            type: string
+            format: datetime   
+      payload:
+        type: object
+        properties: 
+          token: 
+            type: string
