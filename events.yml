@@ -19,6 +19,8 @@ tags:
     description: Events from the Data Manager API (Exchange `ecAPI`)
   - name: Mail/Push Commands
     description: Commands to send E-Mails or Push Notifications
+  - name: ec.Tasks
+    description: Commands to start an ec.task
   - name: AppServer
     description: Commands and Events related to ec.AppServer and Build Worker
   - name: Account Server Notifications
@@ -282,6 +284,29 @@ channels:
             type: topic
             durable: true
             vhost: /
+  /cmd/task/{task}:
+    parameters:
+      task:
+        description: task identifier
+        schema: 
+          type: string
+    publish:
+      operationId: ecTaskCommand
+      tags:
+      - name: ec.Tasks
+      description: "start an ec.task. Available tasks are output from ec.tasks API: https://ec-tasks.entrecode.de/"
+      message:
+        $ref: "#/components/messages/ecTaskCommand"
+      bindings:
+        amqp:
+          persistent: true
+          timestamp: true
+          ack: true
+          exchange:
+            name: ec.tasks
+            type: topic
+            durable: true
+            vhost: /
   /build/{platformType}/run:
     parameters:
       platformType:
@@ -379,7 +404,6 @@ channels:
           type: fanout
           durable: true
           vhost: /
-  #ec.tasks
   #dealbunny
   #dsb-eva
   #expopush
@@ -1014,6 +1038,37 @@ components:
             items:
               type: string
               format: uuid
+    ecTaskCommand:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          type: 
+            type: string
+            description: task name
+          appId:
+            type: string
+            default: 'ec.tasks-api'
+          timestamp:
+            type: number
+      payload:
+        type: object
+        description: payload is depending on the task
+        properties: 
+          commandID:
+            type: string
+          _accountID:
+            type: string
+            format: uuid
+        additionalProperties: true
     AppServerBuildCommand:
       headers:
         type: object
@@ -1156,3 +1211,4 @@ components:
         properties: 
           token: 
             type: string
+    
