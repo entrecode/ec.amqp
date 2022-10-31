@@ -2,6 +2,7 @@ asyncapi: 2.4.0
 info:
   title: ec.amqp
   version: 1.0.0
+  description: This documents all events and commands used in entrecode systems.
 servers:
   production:
     url: cluster1.entrecode.de
@@ -277,8 +278,71 @@ channels:
             type: topic
             durable: true
             vhost: /
-  #appserverBuildEvents
-  #appserverBuild
+  /build/{platformType}/run:
+    parameters:
+      platformType:
+        description: platformType lowercased
+        schema: 
+          type: string
+    publish:
+      operationId: appserverBuildCommand
+      tags:
+      - name: AppServer
+      description: start a build at ec.appserver
+      message:
+        $ref: "#/components/messages/AppServerBuildCommand"
+      bindings:
+        amqp:
+          persistent: true
+          timestamp: true
+          ack: true
+          exchange:
+            name: appserverBuild
+            type: topic
+            durable: true
+            vhost: /
+  /build/{platformType}/buildEvent:
+    parameters:
+      platformType:
+        description: platformType lowercased
+        schema: 
+          type: string
+    subscribe:
+      operationId: appserverBuildEvent
+      tags:
+      - name: AppServer
+      description: an event produced by a running build
+      message:
+        $ref: "#/components/messages/AppServerBuildEvent"
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: appserverBuildEvents
+          type: topic
+          durable: true
+          vhost: /
+  /build/{platformType}/buildResult:
+    parameters:
+      platformType:
+        description: platformType lowercased
+        schema: 
+          type: string
+    subscribe:
+      operationId: appserverBuildResult
+      tags:
+      - name: AppServer
+      description: an event produced by a finished build
+      message:
+        $ref: "#/components/messages/AppServerBuildResult"
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: appserverBuildEvents
+          type: topic
+          durable: true
+          vhost: /
   #ecAuthNotifications
   #dealbunny
   #ec.tasks
@@ -915,3 +979,87 @@ components:
             items:
               type: string
               format: uuid
+    AppServerBuildCommand:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          timestamp:
+            type: number
+      payload:
+        type: object
+        description: platform object
+    AppServerBuildEvent:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          timestamp:
+            type: number
+      payload:
+        type: object
+        properties:
+          uuid:
+            type: string
+            format: uuid
+          timestamp: 
+            type: string
+            format: datetime
+          message: 
+            type: string
+          temporary: 
+            type: boolean
+          info: 
+            type: object
+          buildID:
+            type: string
+          deploymentID:
+            type: string
+            nullable: true
+          eventType:
+            type: string
+    AppServerBuildResult:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          timestamp:
+            type: number
+      payload:
+        type: object
+        properties:
+          result: 
+            enum:
+            - success
+            - error
+          buildID: 
+            type: string
+          timestamp: 
+            type: string
+            format: datetime
+          content: 
+            description: result of build or error
