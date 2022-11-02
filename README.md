@@ -1,6 +1,10 @@
 # ec.amqp
 simple access to entrecode RabbitMQ via node.js
 
+# AsyncAPI Events Documentation
+
+is found here: https://entrecode.github.io/ec.amqp/ 
+
 ## Consume Patterns
 
 Basically, there are two patterns we generally use for consuming RabbitMQ Events: Worker Queue and Publish/Subscribe.
