@@ -55,7 +55,24 @@ channels:
       operationId: entrySub
       tags:
       - name: PublicAPI
-      description: a Data Manager entry was created, updated or deleted. <br>It also contains info about which content has changed on `entryUpdated` events.
+      description: | 
+        a Data Manager entry was created, updated or deleted. <br>
+        It also contains info about which content has changed on `entryUpdated` events.<br>
+        Example:
+        ```js
+        amqp.workerQueue( // or amqp.subscribe(
+          'myService',
+          'publicAPI',
+          ['035af82b.mymodel.*.entryCreated'], // all created entries in mymodel
+          async (event, properties, {ack, nack}) => {
+            const eventType = properties.type;
+            // event is parsed payload
+            ack(); // always call ack() or nack()
+            nack(10000, true) // call nack after timeout of 10 seconds. This is also the default. Second parameter requeue (default is `false` in contrast to amqplib native behavior), third parameter redirect queue (for dead-letter queues)
+          },
+          1 // prefetch (default 1)
+        );
+        ```
       message:
         $ref: "#/components/messages/PublicAPIEntryEvent"
     bindings:
