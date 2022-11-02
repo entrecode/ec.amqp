@@ -1,0 +1,1496 @@
+asyncapi: 2.4.0
+info:
+  title: ec.amqp
+  version: 0.10.1
+  description: This documents all events and commands used in entrecode systems.
+servers:
+  production:
+    url: cluster1.entrecode.de
+    protocol: amqp
+    description: This is the entrecode RabbitMQ broker.
+  stage: 
+    url: cluster1.cachena.entrecode.de
+    protocol: amqp
+    description: This is the entrecode RabbitMQ broker, staging version.
+tags:
+  - name: PublicAPI
+    description: Events from the Data Manager Public API (Exchange `PublicAPI``)
+  - name: DataManager
+    description: Events from the Data Manager API (Exchange `ecAPI`)
+  - name: Mail/Push Commands
+    description: Commands to send E-Mails or Push Notifications
+  - name: ec.Tasks
+    description: Commands to start an ec.task
+  - name: AppServer
+    description: Commands and Events related to ec.AppServer and Build Worker
+  - name: Account Server Notifications
+    description: Events by ec.AccountServer on updated auth information
+  - name: 'Customer: DSB'
+    description: customer-specific Events for DSB
+  - name: 'Customer: Dealbunny'
+    description: customer-specific Events for Dealbunny
+channels:
+  /{shortID}/{modelTitle}/{entryID}/{entryEventType}:
+    parameters:
+      shortID:
+        description: Short ID of the data manager
+        schema: 
+          $ref: "#/components/messages/PublicAPIEntryEvent/payload/properties/shortID"
+      modelTitle:
+        description: Title of the model
+        schema: 
+          $ref: "#/components/messages/PublicAPIEntryEvent/payload/properties/modelTitle"
+      entryID:
+        description: ID of the entry
+        schema: 
+          $ref: "#/components/messages/PublicAPIEntryEvent/payload/properties/entryID"
+      entryEventType:
+        description: type of the entry event
+        schema:
+          enum:
+          - entryCreated
+          - entryUpdated
+          - entryDeleted
+    subscribe:
+      operationId: entrySub
+      tags:
+      - name: PublicAPI
+      description: | 
+        a Data Manager entry was created, updated or deleted. <br>
+        It also contains info about which content has changed on `entryUpdated` events.<br>
+        Example:
+        ```js
+        amqp.workerQueue( // or amqp.subscribe(
+          'myService',
+          'publicAPI',
+          ['035af82b.mymodel.*.entryCreated'], // all created entries in mymodel
+          async (event, properties, {ack, nack}) => {
+            const eventType = properties.type;
+            // event is parsed payload
+            ack(); // always call ack() or nack()
+            nack(10000, true) // call nack after timeout of 10 seconds. This is also the default. Second parameter requeue (default is `false` in contrast to amqplib native behavior), third parameter redirect queue (for dead-letter queues)
+          },
+          1 // prefetch (default 1)
+        );
+        ```
+      message:
+        $ref: "#/components/messages/PublicAPIEntryEvent"
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: publicAPI
+          type: topic
+          durable: true
+          vhost: /
+  /{shortID}/_assets/{assetGroupID}/{assetID}/{assetEventType}:
+    parameters:
+      shortID:
+        description: Short ID of the data manager
+        schema: 
+          $ref: "#/components/messages/PublicAPIEntryEvent/payload/properties/shortID"
+      assetGroupID:
+        description: Title of the asset Group
+        schema: 
+          type: string
+      assetID:
+        description: ID of the entry
+        
+      assetEventType:
+        description: type of the asset event
+        schema:
+          enum:
+          - assetCreated
+          - assetUpdated
+          - assetDeleted
+    subscribe:
+      operationId: assetSub
+      tags:
+      - name: PublicAPI
+      description: an asset was created, updated or deleted.
+      message:
+        $ref: "#/components/messages/PublicAPIAssetEvent"
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: publicAPI
+          type: topic
+          durable: true
+          vhost: /
+  /{shortID}/_auth/{accountID}/loggedIn:
+    parameters:
+      shortID:
+        description: Short ID of the data manager
+        schema: 
+          $ref: "#/components/messages/PublicAPIEntryEvent/payload/properties/shortID"
+      accountID:
+        description: Data Manager User Account ID
+        schema: 
+          type: string
+          format: uuid
+    subscribe:
+      operationId: loggedInSub
+      tags:
+      - name: PublicAPI
+      description: a DM User has logged in / got a new access token
+      message:
+        $ref: "#/components/messages/PublicAPIUserLoggedInEvent"
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: publicAPI
+          type: topic
+          durable: true
+          vhost: /
+  /{dataManagerID}/{dataManagerEventType}:
+    parameters:
+      dataManagerID:
+        description: UUID of the Data Manager
+        schema: 
+          $ref: "#/components/messages/ecAPIDataManagerEvent/payload/properties/dataManagerID"
+      dataManagerEventType:
+        description: type of the dm event. *There is no event for Deletion!*
+        schema:
+          enum:
+          - datamanagerCreated
+          - datamanagerUpdated
+    subscribe:
+      operationId: datamanagerSub
+      tags:
+      - name: DataManager
+      description: a data manager was created or updated.
+      message:
+        $ref: "#/components/messages/ecAPIDataManagerEvent"
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecAPI
+          type: topic
+          durable: true
+          vhost: /
+  /{dataManagerID}/{modelID}/{modelEventType}:
+    parameters:
+      dataManagerID:
+        description: UUID of the Data Manager
+        schema: 
+          $ref: "#/components/messages/ecAPIModelEvent/payload/properties/dataManagerID"
+      modelID:
+        description: UUID of the Model
+        schema: 
+          $ref: "#/components/messages/ecAPIModelEvent/payload/properties/modelID"
+      modelEventType:
+        description: type of the model event
+        schema:
+          enum:
+          - modelCreated
+          - modelUpdated
+          - modelDeleted
+    subscribe:
+      operationId: modelSub
+      tags:
+      - name: DataManager
+      description: a model was created, updated or deleted.
+      message:
+        $ref: "#/components/messages/ecAPIModelEvent"
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecAPI
+          type: topic
+          durable: true
+          vhost: /
+  /{dataManagerID}/{assetGroupID}/{assetgroupEventType}:
+    parameters:
+      dataManagerID:
+        description: UUID of the Data Manager
+        schema: 
+          $ref: "#/components/messages/ecAPIModelEvent/payload/properties/dataManagerID"
+      assetGroupID:
+        description: ID/title of the assetgroup
+        schema: 
+          $ref: "#/components/messages/ecAPIAssetGroupEvent/payload/properties/assetGroup/properties/assetGroupID"
+      assetgroupEventType:
+        description: type of the assetgroup event
+        schema:
+          enum:
+          - assetgroupCreated
+          - assetgroupUpdated
+    subscribe:
+      operationId: assetgroupSub
+      tags:
+      - name: DataManager
+      description: an assetgroup was created or updated.
+      message:
+        $ref: "#/components/messages/ecAPIAssetGroupEvent"
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecAPI
+          type: topic
+          durable: true
+          vhost: /
+  /{dataManagerID}/account/{accountID}/deleted:
+    parameters:
+      dataManagerID:
+        description: UUID of the Data Manager
+        schema: 
+          $ref: "#/components/messages/ecAPIAccountEvent/payload/properties/dataManagerID"
+      accountID:
+        description: ID/title of the assetgroup
+        schema: 
+          $ref: "#/components/messages/ecAPIAccountEvent/payload/properties/accountID"
+    subscribe:
+      operationId: accountSub
+      tags:
+      - name: DataManager
+      description: an DM Account was deleted<br> Note that there are currently no events for created or updated DM Accounts. <br> Also, there are no events for ec.AccountServer Accounts (ec-Accounts).
+      message:
+        $ref: "#/components/messages/ecAPIAccountEvent"
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecAPI
+          type: topic
+          durable: true
+          vhost: /
+  /cmd/sendMail/mailgun/{domain}:
+    parameters:
+      domain:
+        description: mail domain to use
+        schema: 
+          $ref: "#/components/messages/MailMailgunCommand/payload/properties/domain"
+    publish:
+      operationId: sendMailMailgunPub
+      tags:
+      - name: Mail/Push Commands
+      description: send an E-Mail via ec.mail (mailgun)
+      message:
+        $ref: "#/components/messages/MailMailgunCommand"
+      bindings:
+        amqp:
+          persistent: true
+          timestamp: true
+          ack: true
+          exchange:
+            name: mail
+            type: topic
+            durable: true
+            vhost: /
+  /cmd/sendPush/hector/{appsiteID}:
+    parameters:
+      appsiteID:
+        description: appsiteID to use (for firebase config)
+        schema: 
+          $ref: "#/components/messages/PushHectorCommand/payload/properties/appsiteID"
+    publish:
+      operationId: sendPushHectorPub
+      tags:
+      - name: Mail/Push Commands
+      description: send a push notification for Hector Appsites via Firebase
+      message:
+        $ref: "#/components/messages/PushHectorCommand"
+      bindings:
+        amqp:
+          persistent: true
+          timestamp: true
+          ack: true
+          exchange:
+            name: mail
+            type: topic
+            durable: true
+            vhost: /
+  /cmd/task/{task}:
+    parameters:
+      task:
+        description: task identifier
+        schema: 
+          type: string
+    publish:
+      operationId: ecTaskCommand
+      tags:
+      - name: ec.Tasks
+      description: "start an ec.task. Available tasks are output from ec.tasks API: https://ec-tasks.entrecode.de/"
+      message:
+        $ref: "#/components/messages/ecTaskCommand"
+      bindings:
+        amqp:
+          persistent: true
+          timestamp: true
+          ack: true
+          exchange:
+            name: ec.tasks
+            type: topic
+            durable: true
+            vhost: /
+  /build/{platformType}/run:
+    parameters:
+      platformType:
+        description: platformType lowercased
+        schema: 
+          type: string
+    publish:
+      operationId: appserverBuildCommand
+      tags:
+      - name: AppServer
+      description: start a build at ec.appserver
+      message:
+        $ref: "#/components/messages/AppServerBuildCommand"
+      bindings:
+        amqp:
+          persistent: true
+          timestamp: true
+          ack: true
+          exchange:
+            name: appserverBuild
+            type: topic
+            durable: true
+            vhost: /
+  /build/{platformType}/buildEvent:
+    parameters:
+      platformType:
+        description: platformType lowercased
+        schema: 
+          type: string
+    subscribe:
+      operationId: appserverBuildEvent
+      tags:
+      - name: AppServer
+      description: an event produced by a running build
+      message:
+        $ref: "#/components/messages/AppServerBuildEvent"
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: appserverBuildEvents
+          type: topic
+          durable: true
+          vhost: /
+  /build/{platformType}/buildResult:
+    parameters:
+      platformType:
+        description: platformType lowercased
+        schema: 
+          type: string
+    subscribe:
+      operationId: appserverBuildResult
+      tags:
+      - name: AppServer
+      description: an event produced by a finished build
+      message:
+        $ref: "#/components/messages/AppServerBuildResult"
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: appserverBuildEvents
+          type: topic
+          durable: true
+          vhost: /
+  /ecAuth/permissionsUpdated:
+    subscribe:
+      operationId: ecAuthPermissionsUpdated
+      tags:
+      - name: Account Server Notifications
+      description: Permissions of an ec.account were changed
+      message:
+        $ref: "#/components/messages/ecAuthPermissionsUpdated"
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecAuthNotifications
+          type: fanout
+          durable: true
+          vhost: /
+  /ecAuth/tokenRevoked:
+    subscribe:
+      operationId: ecAuthTokenRevoked
+      tags:
+      - name: Account Server Notifications
+      description: An auth token was revoked
+      message:
+        $ref: "#/components/messages/ecAuthTokenRevoked"
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: ecAuthNotifications
+          type: fanout
+          durable: true
+          vhost: /
+  /eva_webhook_events/{eventType}:
+    parameters:
+      eventType:
+        schema: 
+          $ref: "#/components/messages/DSBEvaWebhookEvent/headers/properties/type"
+    subscribe:
+      operationId: dsbEvaWebhookEventSub
+      tags:
+      - name: 'Customer: DSB'
+      description: Subscribe to an DSB EVA webhook event
+      message:
+        $ref: "#/components/messages/DSBEvaWebhookEvent"
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: dsb-eva
+          type: topic
+          durable: true
+          vhost: /
+  /deal/published/{dealID}:
+    parameters:
+      dealID:
+        description: ID of the newly published Deal
+    subscribe:
+      operationId: dealbunnyDealPublished
+      tags:
+      - name: 'Customer: Dealbunny'
+      description: A new Deal is published
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: dealbunny
+          type: topic
+          durable: true
+          vhost: /
+  /{accountID}/seen:
+    parameters:
+      accountID:
+        description: ID of the Account producing this event
+    subscribe:
+      operationId: dealbunnyAccountSeen
+      tags:
+      - name: 'Customer: Dealbunny'
+      description: An Account has seen its activities 
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: dealbunny
+          type: topic
+          durable: true
+          vhost: /
+  /{accountID}/{dealAction}/{dealID}:
+    parameters:
+      accountID:
+        description: ID of the Account producing this event
+      dealAction:
+        schema:
+          enum:
+          - createdDeal
+          - likedDeal
+          - unlikedDeal
+      dealID:
+        description: ID of the deal the action was performed on
+    subscribe:
+      operationId: dealbunnyDealAction
+      tags:
+      - name: 'Customer: Dealbunny'
+      description: An Account has done something on a deal
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: dealbunny
+          type: topic
+          durable: true
+          vhost: /
+  /{accountID}/postedComment/{dealID}{/replyTo}{/parentComment}:
+    parameters:
+      accountID:
+        description: ID of the Account producing this event
+      dealID:
+        description: ID of the deal the comment was created on
+      /replyTo:
+        schema:
+          enum:
+          - replyTo
+          nullable: true
+        description: set to 'replyTo' if parentComment is set^
+      /parentComment:
+        description: a parent comment ID, if this is a reply comment
+        schema:
+          nullable: true
+    subscribe:
+      operationId: dealbunnyPostCommentAction
+      tags:
+      - name: 'Customer: Dealbunny'
+      description: An Account has posted a comment
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: dealbunny
+          type: topic
+          durable: true
+          vhost: /
+  /{accountID}/{commentAction}/{commentID}:
+    parameters:
+      accountID:
+        description: ID of the Account producing this event
+      commentAction:
+        schema:
+          enum:
+          - likedDealComment
+          - dislikedDealComment
+          - undislikedDealComment
+          - unlikedDealComment
+      commentID:
+        description: ID of the comment the action was performed on
+    subscribe:
+      operationId: dealbunnyCommentAction
+      tags:
+      - name: 'Customer: Dealbunny'
+      description: An Account has done something on a comment
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: dealbunny
+          type: topic
+          durable: true
+          vhost: /
+  /{accountID}/redeemedReward/{rewardID}:
+    parameters:
+      accountID:
+        description: ID of the Account producing this event
+      rewardID:
+        description: ID of the reward that was redeemed
+    subscribe:
+      operationId: dealbunnyRewardRedeem
+      tags:
+      - name: 'Customer: Dealbunny'
+      description: An Account redeemed a reward
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: dealbunny
+          type: topic
+          durable: true
+          vhost: /
+  /expo/dealbunny/ticket:
+    publish:
+      operationId: dealbunnyExpoTicket
+      tags:
+      - name: 'Customer: Dealbunny'
+      description: create a Dealbunny Expo Push Ticket
+      message:
+        headers:
+          type: object
+          properties:
+            persistent: 
+              type: boolean
+              default: true
+            contentType:
+              type: string
+              default: 'application/json'
+            messageId: 
+              type: string
+              format: uuid
+            type: 
+              type: string
+              description: '`expoTicket`'
+            appId:
+              type: string
+              default: 'deal.push'
+            timestamp:
+              type: number
+        payload:
+          type: object
+          properties: 
+            ticket:
+              type: string
+            message:
+              type: object
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: expopush
+          type: topic
+          durable: true
+          vhost: /
+  /expo/dealbunny/deleteMessageToken:
+    publish:
+      operationId: dealbunnyDeleteMessageTokenCommand
+      tags:
+      - name: 'Customer: Dealbunny'
+      description: command to delete a dealbunny Expo Push Message Token
+      message:
+        headers:
+          type: object
+          properties:
+            persistent: 
+              type: boolean
+              default: true
+            contentType:
+              type: string
+              default: 'application/json'
+            messageId: 
+              type: string
+              format: uuid
+            type: 
+              type: string
+              description: '`messageToken`'
+            appId:
+              type: string
+              default: 'deal.push'
+            timestamp:
+              type: number
+        payload:
+          type: object
+          properties: 
+            messageToken:
+              type: string
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: expopush
+          type: topic
+          durable: true
+          vhost: /
+components:
+  messages:
+    PublicAPIEntryEvent:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          type: 
+            type: string
+            default: 'entryUpdated'
+          appId:
+            type: string
+            description: shortID
+          timestamp:
+            type: string
+            format: datetime
+      payload:
+        type: object
+        properties:
+          entryID: 
+            type: string
+            description: ID of the entry
+            pattern: ^[0-9A-Za-z-_]{7,14}$
+          modelID: 
+            type: string
+            format: uuid
+            description: ID of the model
+          modelTitle: 
+            type: string
+            description: Title of the model          
+          dataManagerID: 
+            type: string
+            format: uuid
+            description: ID of the data manager
+          shortID:
+            type: string
+            pattern: ^[0-9a-f]{8}$
+            description: Short ID of the data manager
+          data:
+            type: object
+            description: entry content
+            properties:
+              "_creator":
+                type: string
+                format: uuid
+                description: ID of the creator
+                nullable: true
+            additionalProperties: true
+          oldEntryData:
+            type: object
+            description: old entry content, on entryUpdated events
+            additionalProperties: true
+          entryAndAssetRelations: 
+            type: array
+            items:
+              type: object
+          roleRelations: 
+            type: array
+            items:
+              type: object
+          uniqueFields: 
+            type: array
+            items:
+              type: object
+          user: 
+            type: object
+            properties:
+              accountID: 
+                type: string
+                format: uuid
+              userType: 
+                type: string
+                enum: 
+                - publicUser
+                - dmUser
+                nullable: true
+          modified: 
+            type: string
+            format: datetime
+    PublicAPIAssetEvent:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          type: 
+            type: string
+            default: 'assetUpdated'
+          appId:
+            type: string
+            description: shortID
+          timestamp:
+            type: string
+            format: datetime
+      payload:
+        type: object
+        properties:          
+          asset: 
+            type: object
+            description: full created asset object (only on `assetCreated`).
+            properties:
+              assetID: 
+                type: string
+                example: 'fGcaWvdPQhqkmrxvjirsIw'
+                description: ID of the asset (encoded UUID)
+              assetGroupID:
+                type: string
+                description: ID of the assetGroup, arbitrary string.
+              file:
+                type: object
+                properties:
+                  filename:
+                    type: string
+                  size:
+                    type: number
+                  resolution:
+                    type: object
+                    properties:
+                      width: 
+                        type: number
+                      height:
+                        type: number
+              duplicates:
+                type: number
+              dataManagerID:
+                type: string
+                format: uuid
+                description: ID of the data manager
+              fileVariants:
+                type: array
+                description: usually empty array because fileVariants are generated after creation
+              isUsed:
+                type: boolean
+              type: 
+                type: string
+                description: ec asset type
+                enum:
+                - image
+                - video
+                - audio
+                - plain
+                - document
+                - spreadsheet
+                - archive
+                - other
+              title:
+                type: string
+              mimetype:
+                type: string
+              creator:
+                type: string
+                format: uuid
+              creatorType:
+                type: string
+                enum: 
+                - publicUser
+                - dmUser
+                nullable: true
+              created:
+                type: string
+                format: datetime
+              thumbnails:
+                type: array
+              caption:
+                type: string
+                description: usually empty string, because it cannot be set on creation
+              hash:
+                type: string                
+            additionalProperties: true
+          assetID: 
+            type: string
+            example: 'fGcaWvdPQhqkmrxvjirsIw'
+            description: ID of the asset (encoded UUID) (not on `assetCreated`)
+          updatedValues:
+            type: object
+            description: updated values (only on `assetUpdated`)
+            additionalProperties: true
+          oldValues:
+            type: object
+            description: old values of updated values (only on `assetUpdated`)
+            additionalProperties: true
+          accountID: 
+            type: string
+            format: uuid
+          userType: 
+            type: string
+            enum: 
+            - publicUser
+            - dmUser
+            nullable: true
+        required:
+          - accountID
+          - userType
+    PublicAPIUserLoggedInEvent:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          type: 
+            type: string
+            default: 'loggedIn'
+          appId:
+            type: string
+            description: shortID
+          timestamp:
+            type: string
+            format: datetime
+      payload:
+        type: object
+        properties:
+          accountID: 
+            type: string
+            format: uuid
+          issued: 
+            type: number
+          validUntil:
+            type: number
+    ecAPIDataManagerEvent:
+      description: Settings of the created or updated data manager. Note that old values are *not* available on update events.
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          type: 
+            type: string
+            default: 'datamanagerCreated'
+          appId:
+            type: string
+            format: uuid
+            description: dataManagerID
+          timestamp:
+            type: string
+            format: datetime   
+      payload:
+        type: object
+        properties: 
+          dataManagerID:
+            type: string
+            description: UUID of the Data Manager
+            format: uuid
+          shortID:
+            type: string
+            pattern: ^[0-9a-f]{8}$
+            description: Short ID of the data manager
+          title:
+            type: string
+            nullable: true
+          description:
+            type: string
+            nullable: true
+          config:
+            type: object
+          hexColor:
+            type: string
+            pattern: ^#[0-9a-f]{6}$
+          defaultLocale:
+            type: string
+            nullable: true
+          locales:
+            type: array
+          publicAssetRights:
+            type: array
+          customerID:
+            nullable: true
+          dbhost:
+            nullable: true
+    ecAPIModelEvent:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          type: 
+            type: string
+            default: 'modelCreated'
+          appId:
+            type: string
+            format: uuid
+            description: dataManagerID
+          timestamp:
+            type: string
+            format: datetime   
+      payload:
+        type: object
+        properties: 
+          modelID:
+            type: string
+            description: UUID of the Model
+            format: uuid
+          title:
+            type: string
+            nullable: true
+          description:
+            type: string
+            nullable: true
+          hexColor:
+            type: string
+            pattern: ^#[0-9a-f]{6}$
+          titleField:
+            type: string
+          fields:
+            type: array
+            items: 
+              type: object
+          locales:
+            type: array
+          hooks:
+            type: array
+          sync:
+            type: array
+            nullable: true
+          config:
+            type: object
+          dataManagerID:
+            type: string
+            description: UUID of the Data Manager
+            format: uuid
+          shortID:
+            type: string
+            pattern: ^[0-9a-f]{8}$
+            description: Short ID of the data manager
+    ecAPIAssetGroupEvent:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          type: 
+            type: string
+            default: 'assetgroupCreated'
+          appId:
+            type: string
+            format: uuid
+            description: dataManagerID
+          timestamp:
+            type: string
+            format: datetime   
+      payload:
+        type: object
+        properties: 
+          accountID: 
+            type: string
+            description: accountID of the user who triggered this event
+            format: uuid
+          assetGroup: 
+            type: object
+            description: full created assetgroup object (only on `assetgroupCreated` events)
+            properties:
+              assetGroupID:
+                description: The unique ID of the asset group (and also the name)
+                type": string
+                minLength: 1
+                maxLength: 32
+                pattern: ^((?!^image$|^video$|^audio$|^plain$|^document$|^spreadsheet$|^archive$)[a-z0-9_-]{1,32})$
+              public:
+                description: Read-only field indicating if assets in this group are generally public
+                type: boolean
+              settings:
+                type: object
+              policies:
+                type: array
+                items: 
+                  type: object 
+          updatedValues:
+            description: updated values of the assetgroup (only on `assetgroupUpdated` events)
+            type: object
+            settings:
+                type: object
+            policies:
+              type: array
+              items: 
+                type: object
+          oldValues:
+            description: previous values of updated assetgroup values (only on `assetgroupUpdated` events)
+            type: object
+            settings:
+                type: object
+            policies:
+              type: array
+              items: 
+                type: object
+    ecAPIAccountEvent:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          type: 
+            type: string
+            default: 'accountDeleted'
+          appId:
+            type: string
+            format: uuid
+            description: dataManagerID
+          timestamp:
+            type: string
+            format: datetime   
+      payload:
+        type: object
+        properties: 
+          accountID: 
+            type: string
+            description: accountID of the deleted account
+            format: uuid
+          dataManagerID:
+            type: string
+            description: UUID of the Data Manager
+            format: uuid
+          email:
+            type: string
+            format: email
+            nullable: true
+          pending:
+            type: boolean
+          created:
+            type: string
+            format: datetime
+          pendingUpdated:
+            type: string
+            format: datetime
+    MailMailgunCommand:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          type: 
+            type: string
+            default: 'cmd.sendMail'
+          appId:
+            type: string
+            description: domain
+          timestamp:
+            type: number
+      payload:
+        type: object
+        properties: 
+          mail:
+            type: object
+            properties:
+              to:
+                default: "undisclosed-recipients:; <no-reply@${domain}>"
+                oneOf:
+                - type: string
+                  description: Recipient(s) in mailgun-compatible format
+                  example: 'Reci Pient <recipient@somewhere.com>'
+                - type: array
+                  items:
+                    type: string
+                    description: Recipient(s) in mailgun-compatible format
+                    example: 'Reci Pient <recipient@somewhere.com>'
+              cc:
+                oneOf:
+                - type: string
+                  description: Recipient(s) in mailgun-compatible format
+                  example: 'Reci Pient <recipient@somewhere.com>'
+                - type: array
+                  items:
+                    type: string
+                    description: Recipient(s) in mailgun-compatible format
+                    example: 'Reci Pient <recipient@somewhere.com>'
+              bcc:
+                oneOf:
+                - type: string
+                  description: Recipient(s) in mailgun-compatible format
+                  example: 'Reci Pient <recipient@somewhere.com>'
+                - type: array
+                  items:
+                    type: string
+                    description: Recipient(s) in mailgun-compatible format
+                    example: 'Reci Pient <recipient@somewhere.com>'
+              from:
+                type: string
+                description: Sender address in mailgun-compatible format. Domain part must be equal to domain.
+                example: 'entrecode <ec.mail@entrecode.de>'
+              'h:Reply-To':
+                type: string
+                description: Reply-To address in mailgun-compatible format
+                example: 'Reci Pient <recipient@somewhere.com>'
+              subject:
+                type: string
+                description: mail subject
+              text: 
+                type: string
+                description: plain text content. Can be omitted if `html` is set, because it is then generated out of the html content.
+              html:
+                type: string
+                description: main mail content as html. CSS etc. will be inlined automatically.
+              attachment:
+                type: array
+                items:
+                  type: string
+                  format: uri
+              templateSet:
+                type: string
+                default: ''
+                description: ec.mail template set, default is empty string (no template set)
+              template:
+                type: string
+                description: ec.mail template name, do not use together with `mailgunTemplate`
+              language:
+                type: string
+                description: language identifier, if using ec.mail templates
+              data: 
+                type: object
+                description: variable data for ec.mail templates
+              mailgunTemplate: 
+                type: string
+                description: native mailgun template name, do not use together with ec.mail templates.
+              'h:X-Mailgun-Variables':
+                type: string
+                description: 'if using `mailgunTemplate`: a valid JSON-encoded dictionary used as the input for template variable expansion'
+              'o:tag':
+                type: string
+              'o:deliverytime':
+                description: 'Desired time of delivery. Note: Messages can be scheduled for a maximum of 3 days in the future.'
+                type: string
+                example: 'Thu, 13 Oct 2025 18:02:00 +0000'
+          domain: 
+            type: string
+            default: 'entrecode.de'
+    PushHectorCommand:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          type: 
+            type: string
+            default: 'cmd.sendPush'
+          appId:
+            type: string
+            description: appsiteID
+          timestamp:
+            type: number
+      payload:
+        type: object
+        properties: 
+          appsiteID:
+            type: string
+            format: uuid
+          notification: 
+            properties:
+              title: 
+                type: string
+              body:
+                type: string
+              bodyLong:
+                type: string
+                description: for longer message in firebase db
+              messageType:
+                type: string
+              data:
+                type: object
+              from:
+                type: string
+              fromCustomerId:
+                type: string
+            required:
+            - title
+          accountIDs:
+            type: array
+            items:
+              type: string
+              format: uuid
+    ecTaskCommand:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          type: 
+            type: string
+            description: task name
+          appId:
+            type: string
+            default: 'ec.tasks-api'
+          timestamp:
+            type: number
+      payload:
+        type: object
+        description: payload is depending on the task
+        properties: 
+          commandID:
+            type: string
+          _accountID:
+            type: string
+            format: uuid
+        additionalProperties: true
+    AppServerBuildCommand:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          timestamp:
+            type: number
+      payload:
+        type: object
+        description: platform object
+    AppServerBuildEvent:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          timestamp:
+            type: number
+      payload:
+        type: object
+        properties:
+          uuid:
+            type: string
+            format: uuid
+          timestamp: 
+            type: string
+            format: datetime
+          message: 
+            type: string
+          temporary: 
+            type: boolean
+          info: 
+            type: object
+          buildID:
+            type: string
+          deploymentID:
+            type: string
+            nullable: true
+          eventType:
+            type: string
+    AppServerBuildResult:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          timestamp:
+            type: number
+      payload:
+        type: object
+        properties:
+          result: 
+            enum:
+            - success
+            - error
+          buildID: 
+            type: string
+          timestamp: 
+            type: string
+            format: datetime
+          content: 
+            description: result of build or error
+    ecAuthPermissionsUpdated:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          type: 
+            type: string
+            default: 'permissionsUpdated'
+          appId:
+            type: string
+            enum:
+            - ecAuth
+          timestamp:
+            type: string
+            format: datetime   
+      payload:
+        type: object
+        properties: 
+          accountID: 
+            type: string
+            description: accountID whose permissions were changed
+            format: uuid
+    ecAuthTokenRevoked:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          type: 
+            type: string
+            default: 'tokenRevoked'
+          appId:
+            type: string
+            enum:
+            - ecAuth
+          timestamp:
+            type: string
+            format: datetime   
+      payload:
+        type: object
+        properties: 
+          token: 
+            type: string
+    DSBEvaWebhookEvent:
+      headers:
+        type: object
+        properties:
+          persistent: 
+            type: boolean
+            default: true
+          contentType:
+            type: string
+            default: 'application/json'
+          messageId: 
+            type: string
+            format: uuid
+          type: 
+            type: string
+            default: 'abo_renewed'
+            description: currently only `abo_renewed` is implemented
+          timestamp:
+            type: string
+            format: datetime   
+      payload:
+        type: object
+        properties: 
+          franchise: 
+            type: string
+            description: seoTitle
+          subject: 
+            type: string  
+            description: usually booking entryID
+  
