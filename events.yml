@@ -1,7 +1,7 @@
 asyncapi: 2.4.0
 info:
   title: ec.amqp
-  version: 1.0.0
+  version: 0.10.1
   description: This documents all events and commands used in entrecode systems.
 servers:
   production:
@@ -25,6 +25,10 @@ tags:
     description: Commands and Events related to ec.AppServer and Build Worker
   - name: Account Server Notifications
     description: Events by ec.AccountServer on updated auth information
+  - name: 'Customer: DSB'
+    description: customer-specific Events for DSB
+  - name: 'Customer: Dealbunny'
+    description: customer-specific Events for Dealbunny
 channels:
   /{shortID}/{modelTitle}/{entryID}/{entryEventType}:
     parameters:
@@ -424,8 +428,221 @@ channels:
           type: topic
           durable: true
           vhost: /
-  #dealbunny
-  #expopush
+  /deal/published/{dealID}:
+    parameters:
+      dealID:
+        description: ID of the newly published Deal
+    subscribe:
+      operationId: dealbunnyDealPublished
+      tags:
+      - name: 'Customer: Dealbunny'
+      description: A new Deal is published
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: dealbunny
+          type: topic
+          durable: true
+          vhost: /
+  /{accountID}/seen:
+    parameters:
+      accountID:
+        description: ID of the Account producing this event
+    subscribe:
+      operationId: dealbunnyAccountSeen
+      tags:
+      - name: 'Customer: Dealbunny'
+      description: An Account has seen its activities 
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: dealbunny
+          type: topic
+          durable: true
+          vhost: /
+  /{accountID}/{dealAction}/{dealID}:
+    parameters:
+      accountID:
+        description: ID of the Account producing this event
+      dealAction:
+        schema:
+          enum:
+          - createdDeal
+          - likedDeal
+          - unlikedDeal
+      dealID:
+        description: ID of the deal the action was performed on
+    subscribe:
+      operationId: dealbunnyDealAction
+      tags:
+      - name: 'Customer: Dealbunny'
+      description: An Account has done something on a deal
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: dealbunny
+          type: topic
+          durable: true
+          vhost: /
+  /{accountID}/postedComment/{dealID}{/replyTo}{/parentComment}:
+    parameters:
+      accountID:
+        description: ID of the Account producing this event
+      dealID:
+        description: ID of the deal the comment was created on
+      /replyTo:
+        schema:
+          enum:
+          - replyTo
+          nullable: true
+        description: set to 'replyTo' if parentComment is set^
+      /parentComment:
+        description: a parent comment ID, if this is a reply comment
+        schema:
+          nullable: true
+    subscribe:
+      operationId: dealbunnyPostCommentAction
+      tags:
+      - name: 'Customer: Dealbunny'
+      description: An Account has posted a comment
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: dealbunny
+          type: topic
+          durable: true
+          vhost: /
+  /{accountID}/{commentAction}/{commentID}:
+    parameters:
+      accountID:
+        description: ID of the Account producing this event
+      commentAction:
+        schema:
+          enum:
+          - likedDealComment
+          - dislikedDealComment
+          - undislikedDealComment
+          - unlikedDealComment
+      commentID:
+        description: ID of the comment the action was performed on
+    subscribe:
+      operationId: dealbunnyCommentAction
+      tags:
+      - name: 'Customer: Dealbunny'
+      description: An Account has done something on a comment
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: dealbunny
+          type: topic
+          durable: true
+          vhost: /
+  /{accountID}/redeemedReward/{rewardID}:
+    parameters:
+      accountID:
+        description: ID of the Account producing this event
+      rewardID:
+        description: ID of the reward that was redeemed
+    subscribe:
+      operationId: dealbunnyRewardRedeem
+      tags:
+      - name: 'Customer: Dealbunny'
+      description: An Account redeemed a reward
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: dealbunny
+          type: topic
+          durable: true
+          vhost: /
+  /expo/dealbunny/ticket:
+    publish:
+      operationId: dealbunnyExpoTicket
+      tags:
+      - name: 'Customer: Dealbunny'
+      description: create a Dealbunny Expo Push Ticket
+      message:
+        headers:
+          type: object
+          properties:
+            persistent: 
+              type: boolean
+              default: true
+            contentType:
+              type: string
+              default: 'application/json'
+            messageId: 
+              type: string
+              format: uuid
+            type: 
+              type: string
+              description: '`expoTicket`'
+            appId:
+              type: string
+              default: 'deal.push'
+            timestamp:
+              type: number
+        payload:
+          type: object
+          properties: 
+            ticket:
+              type: string
+            message:
+              type: object
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: expopush
+          type: topic
+          durable: true
+          vhost: /
+  /expo/dealbunny/deleteMessageToken:
+    publish:
+      operationId: dealbunnyDeleteMessageTokenCommand
+      tags:
+      - name: 'Customer: Dealbunny'
+      description: command to delete a dealbunny Expo Push Message Token
+      message:
+        headers:
+          type: object
+          properties:
+            persistent: 
+              type: boolean
+              default: true
+            contentType:
+              type: string
+              default: 'application/json'
+            messageId: 
+              type: string
+              format: uuid
+            type: 
+              type: string
+              description: '`messageToken`'
+            appId:
+              type: string
+              default: 'deal.push'
+            timestamp:
+              type: number
+        payload:
+          type: object
+          properties: 
+            messageToken:
+              type: string
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: expopush
+          type: topic
+          durable: true
+          vhost: /
 components:
   messages:
     PublicAPIEntryEvent:
