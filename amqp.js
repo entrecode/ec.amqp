@@ -24,10 +24,11 @@ function shuffleArray(array) {
 const connectionUser = config.get('amqp.user');
 const connectionPassword = config.get('amqp.password');
 const connectionURLs = shuffleArray(
-  config.get('amqp.hosts').map((host) => `amqp://${connectionUser}:${connectionPassword}@${host}`)
+  config.get('amqp.hosts').map((host) => `amqp://${connectionUser}:${connectionPassword}@${host}`),
 );
 
 let neverConnected = true;
+let shuttingDown = false;
 let connectionManager;
 if (process.env.NODE_ENV === 'testing' || (config.has('amqp.active') && config.get('amqp.active') === false)) {
   connectionManager = {
@@ -63,7 +64,7 @@ if (process.env.NODE_ENV === 'testing' || (config.has('amqp.active') && config.g
     console.warn(
       `amqp disconnected (${config.get('amqp.hosts').join('|')}) (${
         clientProperties ? clientProperties.connection_name : 'no hostname'
-      })`
+      })`,
     );
 
     if (err) {
@@ -73,6 +74,10 @@ if (process.env.NODE_ENV === 'testing' || (config.has('amqp.active') && config.g
 }
 
 async function isReachable() {
+  if (shuttingDown) {
+    console.info('amqp is shutting down');
+    return false;
+  }
   if (connectionManager.isConnected()) {
     return true;
   }
@@ -121,7 +126,7 @@ async function workerQueue(queueName, exchange, bindings, handler, prefetch = 1)
               nack(10000, true);
             }
           },
-          { exclusive: false }
+          { exclusive: false },
         ),
       ]);
     },
@@ -163,7 +168,7 @@ async function subscribe(queueNamePrefix, exchange, bindings, handler, options =
               nack(10000);
             }
           },
-          Object.assign({}, { exclusive: true }, consumeOptions)
+          Object.assign({}, { exclusive: true }, consumeOptions),
         ),
       ]);
     },
@@ -200,21 +205,24 @@ async function publishChannel(exchange, exchangeType, durable) {
           timestamp: new Date().getTime(),
         },
         { type, appId: appID },
-        options
-      )
+        options,
+      ),
     );
   };
 }
 
 process.on('SIGHUP', () => {
+  shuttingDown = true;
   connectionManager.close();
 });
 
 process.on('SIGINT', () => {
+  shuttingDown = true;
   connectionManager.close();
 });
 
 process.on('SIGTERM', () => {
+  shuttingDown = true;
   connectionManager.close();
 });
 
