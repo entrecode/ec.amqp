@@ -6,7 +6,7 @@ const path = require('path');
 const config = require('config');
 const amqp = require('amqp-connection-manager');
 const { v4: uuid } = require('uuid');
-const LegacyAMQP = require('./legacyAMQP');
+const getLegacyAMQP = require('./legacyAMQP');
 const { name: product, version } = require('./package.json');
 
 // init default config
@@ -238,7 +238,7 @@ process.on('SIGTERM', () => {
 });
 
 module.exports = {
-  LegacyAMQP,
+  getLegacyAMQP,
   isReachable,
   workerQueue,
   subscribe,

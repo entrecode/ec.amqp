@@ -158,9 +158,9 @@ reference to the underlying amqp-connection-manager object. Only for legacy adap
 
 # Changelog
 
-## 0.12.0
+## 0.11.0
 - BREAKING: Support for new k8s RabbitMQ Clusters
-- For legacy cluster use `amqp.LegacyAMQP()` to get the instance for the old cluster
+- For legacy cluster use `amqp.getLegacyAMQP()` to get the instance for the old cluster
 
 ## 0.10.2
 - adds flag to indicate if server is shutting down
