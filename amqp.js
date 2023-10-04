@@ -6,6 +6,7 @@ const path = require('path');
 const config = require('config');
 const amqp = require('amqp-connection-manager');
 const { v4: uuid } = require('uuid');
+const LegacyAMQP = require('./legacyAMQP');
 const { name: product, version } = require('./package.json');
 
 // init default config
@@ -96,7 +97,12 @@ async function workerQueue(queueName, exchange, bindings, handler, prefetch = 1)
     setup(channel) {
       return Promise.all([
         channel.assertExchange(exchange, 'topic', { durable: true }),
-        channel.assertQueue(queueName, { durable: true }),
+        channel.assertQueue(queueName, {
+          durable: true,
+          arguments: {
+            'x-queue-type': 'quorum',
+          },
+        }),
         channel.prefetch(prefetch),
         ...bindings.map((binding) => channel.bindQueue(queueName, exchange, binding)),
         channel.consume(
@@ -111,7 +117,12 @@ async function workerQueue(queueName, exchange, bindings, handler, prefetch = 1)
             const nack = (timeout = 10000, requeue = false, redirectQueue) =>
               setTimeout(async () => {
                 if (redirectQueue) {
-                  await channel.assertQueue(redirectQueue, { durable: true });
+                  await channel.assertQueue(redirectQueue, {
+                    durable: true,
+                    arguments: {
+                      'x-queue-type': 'quorum',
+                    },
+                  });
                   await channelWrapper.sendToQueue(redirectQueue, message.content, message.properties);
                 }
                 return channelWrapper.nack(message, false, requeue);
@@ -227,6 +238,7 @@ process.on('SIGTERM', () => {
 });
 
 module.exports = {
+  LegacyAMQP,
   isReachable,
   workerQueue,
   subscribe,

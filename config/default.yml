@@ -1,5 +1,7 @@
 user: guest
 password: guest
+legacyHosts: 
+  - localhost
 hosts: 
   - localhost
 heartbeatIntervalInSeconds: 10
