@@ -232,4 +232,10 @@ class LegacyAMQP {
   }
 }
 
-module.exports = LegacyAMQP;
+let instance;
+module.exports = () => {
+  if (!instance) {
+    instance = new LegacyAMQP();
+  }
+  return instance;
+};
