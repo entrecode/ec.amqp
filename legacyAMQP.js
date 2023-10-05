@@ -209,7 +209,7 @@ class LegacyAMQP {
   }
 
   async publishChannel(exchange, exchangeType, durable) {
-    const channelWrapper = plainChannel(exchange, exchangeType, durable);
+    const channelWrapper = this.plainChannel(exchange, exchangeType, durable);
     return async function publish(routingKey, content, type, appID, options) {
       return channelWrapper.publish(
         exchange,
