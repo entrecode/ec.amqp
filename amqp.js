@@ -31,7 +31,11 @@ const connectionURLs = shuffleArray(
 let neverConnected = true;
 let shuttingDown = false;
 let connectionManager;
-if (process.env.NODE_ENV === 'testing' || (config.has('amqp.active') && config.get('amqp.active') === false)) {
+if (
+  process.env.NODE_ENV === 'testing' ||
+  (config.has('amqp.active') && config.get('amqp.active') === false) ||
+  (config.has('amqp.disableNewCluster') && config.get('amqp.disableNewCluster') === true)
+) {
   connectionManager = {
     isConnected: () => true,
     createChannel: () => ({ publish: () => {} }),

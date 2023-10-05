@@ -6,3 +6,4 @@ hosts:
   - localhost
 heartbeatIntervalInSeconds: 10
 reconnectTimeInSeconds: 5
+disableNewCluster: false
