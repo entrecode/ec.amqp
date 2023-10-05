@@ -29,7 +29,7 @@ class LegacyAMQP {
       config.get('amqp.legacyHosts').map((host) => `amqp://${connectionUser}:${connectionPassword}@${host}`),
     );
 
-    this.this.neverConnected = true;
+    this.neverConnected = true;
     this.shuttingDown = false;
     this.connectionManager;
     if (process.env.NODE_ENV === 'testing' || (config.has('amqp.active') && config.get('amqp.active') === false)) {
@@ -62,7 +62,7 @@ class LegacyAMQP {
         console.log(
           `amqp connected to ${c.url} (${clientProperties ? clientProperties.connection_name : 'no hostname'})`,
         );
-        this.this.neverConnected = false;
+        this.neverConnected = false;
       });
       this.connectionManager.on('disconnect', ({ err }) => {
         console.warn(
@@ -101,7 +101,7 @@ class LegacyAMQP {
     if (this.connectionManager.isConnected()) {
       return true;
     }
-    if (this.this.neverConnected) {
+    if (this.neverConnected) {
       await new Promise((resolve) => setTimeout(resolve, 2000));
       if (this.connectionManager.isConnected()) {
         return true;
