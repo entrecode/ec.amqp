@@ -1,6 +1,2 @@
-legacyHosts:
-  - cluster1.entrecode.de
-  - cluster2.entrecode.de
-  - cluster3.entrecode.de
 hosts: 
   - rabbitmq.rabbitmq.svc.cluster.local

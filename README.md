@@ -158,6 +158,9 @@ reference to the underlying amqp-connection-manager object. Only for legacy adap
 
 # Changelog
 
+## 0.12.0
+- BREAKING: Removed `amqp.getLegacyAMQP()`. You must use new cluster now.
+
 ## 0.11.0
 - BREAKING: Support for new k8s RabbitMQ Clusters
 - For legacy cluster use `amqp.getLegacyAMQP()` to get the instance for the old cluster (Use `config.amqp.disableNewCluster` to disable new cluster when using legacy cluster)
