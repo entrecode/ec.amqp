@@ -67,6 +67,7 @@ amqp.subscribe(
   },
   {
     noAck: true // options object is optional
+    exchangeType: 'fanout', // default is 'topic'
   }
 )
 
