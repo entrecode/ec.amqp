@@ -156,8 +156,12 @@ async function subscribe(queueNamePrefix, exchange, bindings, handler, options =
       if (options.noAck) {
         consumeOptions = { noAck: true };
       }
+      let exchangeType = 'topic';
+      if (options.exchangeType) {
+        exchangeType = options.exchangeType;
+      }
       return Promise.all([
-        channel.assertExchange(exchange, 'topic', { durable: true }),
+        channel.assertExchange(exchange, exchangeType, { durable: true }),
         channel.assertQueue(queueName, { durable: false, exclusive: true }),
         ...bindings.map((binding) => channel.bindQueue(queueName, exchange, binding)),
         channel.consume(
