@@ -161,8 +161,13 @@ async function subscribe(queueNamePrefix, exchange, bindings, handler, options =
         exchangeType = options.exchangeType;
       }
       return Promise.all([
-        channel.assertExchange(exchange, exchangeType, { durable: true }),
-        channel.assertQueue(queueName, { durable: false, exclusive: true }),
+        channel.assertExchange(exchange, exchangeType, {
+          durable: 'durableExchange' in options ? options.durableExchange : true,
+        }),
+        channel.assertQueue(queueName, {
+          durable: 'durableQueue' in options ? options.durableQueue : false,
+          exclusive: 'exclusiveQueue' in options ? options.exclusiveQueue : true,
+        }),
         ...bindings.map((binding) => channel.bindQueue(queueName, exchange, binding)),
         channel.consume(
           queueName,
