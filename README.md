@@ -1,9 +1,10 @@
 # ec.amqp
+
 simple access to entrecode RabbitMQ via node.js
 
 # AsyncAPI Events Documentation
 
-is found here: https://entrecode.github.io/ec.amqp/ 
+is found here: https://entrecode.github.io/ec.amqp/
 
 ## Consume Patterns
 
@@ -18,14 +19,14 @@ Use cases are: sending emails, updating a database. Generally spoken: stuff that
 
 ### Publish/Subscribe
 
-Events are in an exclusive queue per process. The queue is non-persisting and only lives as long as the process lives. Useful for updating in-memory data in processes. 
+Events are in an exclusive queue per process. The queue is non-persisting and only lives as long as the process lives. Useful for updating in-memory data in processes.
 
 ## Other Usages
 
 ### Publish Channel
 
 To publish messages, call `amqp.publishChannel(exchange)`. You'll get back an async function `publish(routingKey, content, type, appID, options)`. This is a helper function for publishing messages. `content` is expected to be JSON which
-will be stringified and put in a Buffer in the function. A `messageId` and `timestamp` will be generated automatically. `type`, `appID` and `options` are optional. 
+will be stringified and put in a Buffer in the function. A `messageId` and `timestamp` will be generated automatically. `type`, `appID` and `options` are optional.
 The exchange type and durability can be set optionally: `amqp.publishChannel(exchange, 'fanout', false)` (default is `'topic'` and `true`).
 
 ### Plain Channel
@@ -68,6 +69,9 @@ amqp.subscribe(
   {
     noAck: true // options object is optional
     exchangeType: 'fanout', // default is 'topic'
+    durableExchange: true // default is true
+    durableQueue: false // default is false
+    exclusiveQueue: true // default is true
   }
 )
 
@@ -122,7 +126,8 @@ publish('my.routing.key', contentJSON, 'didStuff', 'myAppID', { timestamp });
 ```
 
 ## Custom Config
-The module uses [node-config](https://github.com/lorenwest/node-config) internally. It brings default amqp configuration for `default`, `stage` and `production` NODE_ENVs. 
+
+The module uses [node-config](https://github.com/lorenwest/node-config) internally. It brings default amqp configuration for `default`, `stage` and `production` NODE_ENVs.
 You can overwrite the config by providing a node-config in your app:
 
 ```yaml
@@ -147,7 +152,8 @@ For local usage, set `NODE_ENV` = `testing` or `active: false` in the config. A 
 
 ## API
 
-### async #.isReachable() 
+### async #.isReachable()
+
 returns `true` if amqp is connected, throws an Error otherwise.
 
 ### async #.workerQueue(queueName, exchange, bindings, handler)
@@ -155,43 +161,60 @@ returns `true` if amqp is connected, throws an Error otherwise.
 ### async #.subscribe(queueNamePrefix, exchange, bindings, handler[, options])
 
 ### async #.connectionManager
-reference to the underlying amqp-connection-manager object. Only for legacy adaptors. 
+
+reference to the underlying amqp-connection-manager object. Only for legacy adaptors.
 
 # Changelog
 
 ## 0.12.0
+
 - BREAKING: Removed `amqp.getLegacyAMQP()`. You must use new cluster now.
 
 ## 0.11.0
+
 - BREAKING: Support for new k8s RabbitMQ Clusters
 - For legacy cluster use `amqp.getLegacyAMQP()` to get the instance for the old cluster (Use `config.amqp.disableNewCluster` to disable new cluster when using legacy cluster)
 
 ## 0.10.2
+
 - adds flag to indicate if server is shutting down
 
 ## 0.10.1
+
 - make all config settable als env variables, for easy usage with Next.js projects
 
 ## 0.10.0
+
 - dependency update
 
 ## 0.9.1
+
 - make `heartbeatIntervalInSeconds` and `reconnectTimeInSeconds` settable, using config or env variables
 - write hostname and pid in `connection_name` field in RabbitMQ for better recognition of connections
 - set product and version in RabbitMQ connection metadata to ec.amqp values
 - update amqplib
+
 ## 0.9.0
+
 - BREAKING: drop support for node 6 and node 8 (because of [amqp-connection-manager@3](https://github.com/jwalton/node-amqp-connection-manager/blob/master/CHANGELOG.md#300-2019-07-04) - it probably still works)
+
 ## 0.8.2
+
 - added exchange type and durable options for plain channels and publish channels
+
 ## 0.8.1
+
 - dependency update
+
 ## 0.8.0
+
 - channel setup with recommended parallel promises
 - BREAKING: removed callback from `#plainChannel(exchange)`
 
 ## 0.7.1
+
 - respect `active: false` in config
 
 ## 0.7.0
+
 - BREAKING: default config is now for enderby environment
