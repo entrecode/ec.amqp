@@ -10,11 +10,11 @@ jobs:
     steps:
     #"standard step" where repo needs to be checked-out first
     - name: Checkout repo
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       
     #Using another action for AsyncAPI for validation
     - name: Validating AsyncAPI document
-      uses: WaleedAshraf/asyncapi-github-action@v0.0.8
+      uses: WaleedAshraf/asyncapi-github-action@v0.0.10
       with:
         filepath: ./events.yml
       
@@ -29,8 +29,8 @@ jobs:
       
     #Using another action that takes generated HTML and pushes it to GH Pages
     - name: Deploy GH page
-      uses: JamesIves/github-pages-deploy-action@3.4.2
+      uses: JamesIves/github-pages-deploy-action@v4.6.9
       with:
-        ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        BRANCH: gh-pages
-        FOLDER: generated-html
+        token: ${{ secrets.GITHUB_TOKEN }}
+        branch: gh-pages
+        folder: generated-html
