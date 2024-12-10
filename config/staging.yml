@@ -1,0 +1,2 @@
+hosts: 
+  - rabbitmq.rabbitmq.svc.cluster.local
