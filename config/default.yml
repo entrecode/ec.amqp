@@ -2,6 +2,7 @@ user: guest
 password: guest
 hosts: 
   - localhost
+tls: false
 heartbeatIntervalInSeconds: 10
 reconnectTimeInSeconds: 5
 disableNewCluster: false
