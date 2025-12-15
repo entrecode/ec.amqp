@@ -1436,6 +1436,12 @@ components:
             type: string
             description: accountID whose permissions were changed
             format: uuid
+          accountIDs:
+            type: array
+            description: list of accountIDs whose permissions were changed
+            items:
+              type: string
+              format: uuid
     ecAuthTokenRevoked:
       headers:
         type: object
