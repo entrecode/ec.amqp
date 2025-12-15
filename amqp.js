@@ -21,10 +21,11 @@ function shuffleArray(array) {
   return array;
 }
 
-const connectionUser = config.get('amqp.user');
-const connectionPassword = config.get('amqp.password');
+const connectionUser = encodeURIComponent(config.get('amqp.user'));
+const connectionPassword = encodeURIComponent(config.get('amqp.password'));
+const useTLS = config.get('amqp.tls');
 const connectionURLs = shuffleArray(
-  config.get('amqp.hosts').map((host) => `amqp://${connectionUser}:${connectionPassword}@${host}`),
+  config.get('amqp.hosts').map((host) => `amqp${!!useTLS ? 's' : ''}://${connectionUser}:${connectionPassword}@${host}`),
 );
 
 let neverConnected = true;

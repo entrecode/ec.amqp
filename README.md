@@ -166,6 +166,14 @@ reference to the underlying amqp-connection-manager object. Only for legacy adap
 
 # Changelog
 
+## 0.14.0
+- adds support for amqps:// with config option AMQP_TLS
+- fixes using special characters in amqp password
+
+## 0.13.0
+
+- adds staging environment
+
 ## 0.12.0
 
 - BREAKING: Removed `amqp.getLegacyAMQP()`. You must use new cluster now.
