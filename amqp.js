@@ -39,7 +39,7 @@ if (
   connectionManager = {
     isConnected: () => true,
     createChannel: () => ({ publish: () => {} }),
-    close: () => {},
+    close: () => Promise.resolve(),
   };
   console.warn('ec.amqp is in testing mode and not attempting to connect to RabbitMQ.');
 } else {
@@ -235,19 +235,43 @@ async function publishChannel(exchange, exchangeType, durable) {
   };
 }
 
-process.on('SIGHUP', () => {
+async function gracefulShutdown() {
+  if (shuttingDown) {
+    return Promise.resolve();
+  }
   shuttingDown = true;
-  connectionManager.close();
+  return connectionManager.close().catch((err) => {
+    console.error('Error during graceful shutdown:', err);
+  });
+}
+
+process.on('SIGHUP', async () => {
+  await gracefulShutdown();
 });
 
-process.on('SIGINT', () => {
-  shuttingDown = true;
-  connectionManager.close();
+process.on('SIGINT', async () => {
+  await gracefulShutdown();
 });
 
-process.on('SIGTERM', () => {
-  shuttingDown = true;
-  connectionManager.close();
+process.on('SIGTERM', async () => {
+  await gracefulShutdown();
+});
+
+// Unhandled exception handlers
+process.on('uncaughtException', async (err) => {
+  console.error('Uncaught exception:', err);
+  await gracefulShutdown();
+  process.exit(1);
+});
+
+process.on('unhandledRejection', async (reason, promise) => {
+  console.error('Unhandled rejection at:', promise, 'reason:', reason);
+  await gracefulShutdown();
+  process.exit(1);
+});
+
+process.on('beforeExit', async (code) => {
+  await gracefulShutdown();
 });
 
 module.exports = {
