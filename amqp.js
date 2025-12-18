@@ -246,31 +246,37 @@ async function gracefulShutdown() {
 }
 
 process.on('SIGHUP', async () => {
+  console.log('[ec.amqp] SIGHUP received.');
   await gracefulShutdown();
 });
 
 process.on('SIGINT', async () => {
+  console.log('[ec.amqp] SIGINT received.');
   await gracefulShutdown();
 });
 
 process.on('SIGTERM', async () => {
+  console.log('[ec.amqp] SIGTERM received.');
   await gracefulShutdown();
 });
 
 // Unhandled exception handlers
 process.on('uncaughtException', async (err) => {
+  console.log('[ec.amqp] uncaughtException received. err:', err);
   console.error('Uncaught exception:', err);
   await gracefulShutdown();
   process.exit(1);
 });
 
 process.on('unhandledRejection', async (reason, promise) => {
+  console.log('[ec.amqp] unhandledRejection received. reason:', reason, 'promise:', promise);
   console.error('Unhandled rejection at:', promise, 'reason:', reason);
   await gracefulShutdown();
   process.exit(1);
 });
 
 process.on('beforeExit', async (code) => {
+  console.log('[ec.amqp] beforeExit received. code:', code);
   await gracefulShutdown();
 });
 
