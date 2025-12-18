@@ -25,7 +25,9 @@ const connectionUser = encodeURIComponent(config.get('amqp.user'));
 const connectionPassword = encodeURIComponent(config.get('amqp.password'));
 const useTLS = config.get('amqp.tls');
 const connectionURLs = shuffleArray(
-  config.get('amqp.hosts').map((host) => `amqp${!!useTLS ? 's' : ''}://${connectionUser}:${connectionPassword}@${host}`),
+  config
+    .get('amqp.hosts')
+    .map((host) => `amqp${!!useTLS ? 's' : ''}://${connectionUser}:${connectionPassword}@${host}`),
 );
 
 let neverConnected = true;
@@ -262,15 +264,13 @@ process.on('SIGTERM', async () => {
 
 // Unhandled exception handlers
 process.on('uncaughtException', async (err) => {
-  console.log('[ec.amqp] uncaughtException received. err:', err);
-  console.error('Uncaught exception:', err);
+  console.log('[ec.amqp] uncaughtException received.');
   await gracefulShutdown();
   process.exit(1);
 });
 
-process.on('unhandledRejection', async (reason, promise) => {
-  console.log('[ec.amqp] unhandledRejection received. reason:', reason, 'promise:', promise);
-  console.error('Unhandled rejection at:', promise, 'reason:', reason);
+process.on('unhandledRejection', async () => {
+  console.log('[ec.amqp] unhandledRejection received.');
   await gracefulShutdown();
   process.exit(1);
 });
