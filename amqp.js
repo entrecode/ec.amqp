@@ -287,4 +287,5 @@ module.exports = {
   publishChannel,
   plainChannel,
   connectionManager,
+  gracefulShutdown,
 };
