@@ -3,6 +3,6 @@ password: guest
 hosts: 
   - localhost
 tls: false
-heartbeatIntervalInSeconds: 10
-reconnectTimeInSeconds: 5
+heartbeatIntervalInSeconds: 60
+reconnectTimeInSeconds: 10
 disableNewCluster: false
