@@ -1,2 +1,4 @@
-hosts: 
-  - rabbitmq.rabbitmq.svc.cluster.local
+hosts:
+  - exotic-pink-fish-01.rmq7.cloudamqp.com
+tls: true
+vhost: somohaol
