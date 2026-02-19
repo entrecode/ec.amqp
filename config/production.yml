@@ -1,2 +1,4 @@
-hosts: 
-  - rabbitmq.rabbitmq.svc.cluster.local
+hosts:
+  - myrtle-magenta-gull.rmq6.cloudamqp.com
+tls: true
+vhost: rgfyptur
