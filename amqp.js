@@ -69,7 +69,9 @@ if (
     },
   });
   connectionManager.on('connect', (c) => {
-    console.log(`amqp connected to ${c.url} (${clientProperties ? clientProperties.connection_name : 'no hostname'})`);
+    console.log(
+      `amqp connected to ${c.url.replace(/\/\/[^@]+@/, '//***:***@')} (${clientProperties ? clientProperties.connection_name : 'no hostname'})`
+    );
     neverConnected = false;
   });
   connectionManager.on('disconnect', ({ err }) => {
