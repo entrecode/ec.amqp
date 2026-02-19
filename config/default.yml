@@ -1,8 +1,9 @@
 user: guest
 password: guest
-hosts: 
+hosts:
   - localhost
 tls: false
+vhost: ""
 heartbeatIntervalInSeconds: 60
 reconnectTimeInSeconds: 10
 disableNewCluster: false

@@ -24,10 +24,14 @@ function shuffleArray(array) {
 const connectionUser = encodeURIComponent(config.get('amqp.user'));
 const connectionPassword = encodeURIComponent(config.get('amqp.password'));
 const useTLS = config.get('amqp.tls');
+const connectionVhost =
+  config.has('amqp.vhost') && config.get('amqp.vhost') ? `/${encodeURIComponent(config.get('amqp.vhost'))}` : '';
 const connectionURLs = shuffleArray(
   config
     .get('amqp.hosts')
-    .map((host) => `amqp${!!useTLS ? 's' : ''}://${connectionUser}:${connectionPassword}@${host}`),
+    .map(
+      (host) => `amqp${!!useTLS ? 's' : ''}://${connectionUser}:${connectionPassword}@${host}${connectionVhost}`,
+    ),
 );
 
 let neverConnected = true;
@@ -45,7 +49,8 @@ if (
   };
   console.warn('ec.amqp is in testing mode and not attempting to connect to RabbitMQ.');
 } else {
-  console.log('ec.amqp is trying to connect...', JSON.stringify({ connectionURLs }));
+  const redactedURLs = connectionURLs.map((url) => url.replace(/\/\/[^@]+@/, '//***:***@'));
+  console.log('ec.amqp is trying to connect...', JSON.stringify({ connectionURLs: redactedURLs }));
 
   let clientProperties;
   if (process.env.HOSTNAME) {
