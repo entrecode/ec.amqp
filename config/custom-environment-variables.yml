@@ -7,5 +7,6 @@ hosts:
 tls:
   __name: AMQP_TLS
   __format: boolean
+vhost: AMQP_VHOST
 heartbeatIntervalInSeconds: AMQP_HEARTBEAT_INTERVAL_IN_SECONDS
 reconnectTimeInSeconds: AMQP_RECONNECT_TIME_IN_SECONDS
