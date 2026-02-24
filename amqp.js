@@ -161,7 +161,7 @@ async function workerQueue(queueName, exchange, bindings, handler, prefetch = 1)
 async function subscribe(queueNamePrefix, exchange, bindings, handler, options = {}) {
   const channelWrapper = connectionManager.createChannel({
     setup(channel) {
-      const queueName = `${queueNamePrefix}-${uuid()}}`;
+      const queueName = `${queueNamePrefix}-${uuid()}`;
       let consumeOptions;
       if (options.noAck) {
         consumeOptions = { noAck: true };
