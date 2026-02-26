@@ -74,6 +74,9 @@ if (
     );
     neverConnected = false;
   });
+  connectionManager.on('connectFailed', (err) => {
+    console.error('amqp connect failed:', err);
+  });
   connectionManager.on('disconnect', ({ err }) => {
     console.warn(
       `amqp disconnected (${config.get('amqp.hosts').join('|')}) (${
