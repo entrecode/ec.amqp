@@ -1,4 +1,5 @@
 hosts:
   - hippy-coral-armadillo-01.rmq5.cloudamqp.com
 tls: true
-vhost: rcibtddg
+vhost: entrecode
+

@@ -1,4 +1,4 @@
 hosts:
   - myrtle-magenta-gull.rmq6.cloudamqp.com
 tls: true
-vhost: rgfyptur
+vhost: entrecode
