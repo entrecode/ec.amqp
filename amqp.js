@@ -28,6 +28,7 @@ class AmqpConnection {
   constructor(options = {}) {
     this._shuttingDown = false;
     this._neverConnected = true;
+    this._logLabel = options.connectionName ? `[ec.amqp:${options.connectionName}]` : '[ec.amqp]';
 
     const {
       hosts = [],
@@ -47,7 +48,7 @@ class AmqpConnection {
     );
 
     const redactedURLs = connectionURLs.map((url) => url.replace(/\/\/[^@]+@/, '//***:***@'));
-    console.log('ec.amqp is trying to connect...', JSON.stringify({ connectionURLs: redactedURLs }));
+    console.log(this._logLabel, 'trying to connect...', JSON.stringify({ connectionURLs: redactedURLs }));
 
     let clientProperties;
     if (process.env.HOSTNAME) {
@@ -69,19 +70,21 @@ class AmqpConnection {
 
     this._connectionManager.on('connect', (c) => {
       console.log(
-        `amqp connected to ${c.url.replace(/\/\/[^@]+@/, '//***:***@')} (${clientProperties ? clientProperties.connection_name : 'no hostname'})`,
+        this._logLabel,
+        `connected to ${c.url.replace(/\/\/[^@]+@/, '//***:***@')} (${clientProperties ? clientProperties.connection_name : 'no hostname'})`,
       );
       this._neverConnected = false;
     });
     this._connectionManager.on('connectFailed', (err) => {
-      console.error('amqp connect failed:', err);
+      console.error(this._logLabel, 'connect failed:', err);
     });
     this._connectionManager.on('disconnect', ({ err }) => {
       console.warn(
-        `amqp disconnected (${hosts.join('|')}) (${clientProperties ? clientProperties.connection_name : 'no hostname'})`,
+        this._logLabel,
+        `disconnected (${hosts.join('|')}) (${clientProperties ? clientProperties.connection_name : 'no hostname'})`,
       );
       if (err) {
-        console.warn(`amqp disconnect reason: ${err.message} ${err.stack} ${JSON.stringify(err)}`);
+        console.warn(this._logLabel, 'disconnect reason:', err.message, err.stack, JSON.stringify(err));
       }
     });
 
@@ -94,7 +97,7 @@ class AmqpConnection {
 
   async isReachable() {
     if (this._shuttingDown) {
-      console.info('amqp is shutting down');
+      console.info(this._logLabel, 'is shutting down');
       return false;
     }
     if (this._connectionManager.isConnected()) {
@@ -146,13 +149,14 @@ class AmqpConnection {
                   return channelWrapper.nack(message, false, requeue);
                 }, timeout);
               };
+              const logLabel = this._logLabel;
               try {
                 await handler(event, properties, {
                   ack,
                   nack,
                 });
               } catch (err) {
-                console.error(err);
+                console.error(logLabel, 'workerQueue handler error:', err);
                 nack(10000, true);
               }
             },
@@ -198,13 +202,14 @@ class AmqpConnection {
                   channelWrapper.nack(message);
                 }, timeout);
               };
+              const logLabel = this._logLabel;
               try {
                 await handler(event, message.properties, {
                   ack,
                   nack,
                 });
               } catch (err) {
-                console.error(err);
+                console.error(logLabel, 'subscribe handler error:', err);
                 nack(10000);
               }
             },
@@ -218,7 +223,7 @@ class AmqpConnection {
 
   plainChannel(exchange, exchangeType = 'topic', durable = true) {
     if (typeof exchangeType === 'function') {
-      console.error('plainChannel `channelCallback` has been removed in v0.8.0');
+      console.error(this._logLabel, 'plainChannel `channelCallback` has been removed in v0.8.0');
       exchangeType = 'topic'; // eslint-disable-line no-param-reassign
     }
     return this._connectionManager.createChannel({
@@ -257,19 +262,34 @@ class AmqpConnection {
     }
     this._shuttingDown = true;
     return this._connectionManager.close().catch((err) => {
-      console.error('Error during graceful shutdown:', err);
+      console.error(this._logLabel, 'Error during graceful shutdown:', err);
     });
   }
 }
 
 function createConnection(name, options) {
+  const opts = typeof name === 'object' ? name : options;
+  const useMock =
+    process.env.NODE_ENV === 'testing' && opts && opts.active === false;
+
+  if (useMock) {
+    const mock = createMockConnection(typeof name === 'object' ? undefined : name);
+    if (typeof name === 'object') {
+      return mock;
+    }
+    if (namedConnections.has(name)) {
+      throw new Error(`ec.amqp: connection "${name}" already exists`);
+    }
+    namedConnections.set(name, mock);
+    return mock;
+  }
   if (typeof name === 'object') {
     return new AmqpConnection(name);
   }
   if (namedConnections.has(name)) {
     throw new Error(`ec.amqp: connection "${name}" already exists`);
   }
-  const connection = new AmqpConnection(options);
+  const connection = new AmqpConnection({ ...options, connectionName: name });
   namedConnections.set(name, connection);
   return connection;
 }
@@ -277,18 +297,43 @@ function createConnection(name, options) {
 function getConnection(name) {
   const connection = namedConnections.get(name);
   if (!connection) {
-    throw new Error(`ec.amqp: connection "${name}" not found. Create it first with createConnection("${name}", options).`);
+    throw new Error(
+      `ec.amqp: connection "${name}" not found. Create it first with createConnection("${name}", options).`,
+    );
   }
   return connection;
 }
 
 const isTesting =
-  process.env.NODE_ENV === 'testing' ||
-  (config.has('amqp.active') && config.get('amqp.active') === false) ||
-  (config.has('amqp.disableNewCluster') && config.get('amqp.disableNewCluster') === true);
+  process.env.NODE_ENV === 'testing' || (config.has('amqp.active') && config.get('amqp.active') === false);
 
 if (isTesting) {
   console.warn('ec.amqp is in testing mode and not attempting to connect to RabbitMQ.');
+}
+
+function createMockConnection(connectionName) {
+  const logLabel = connectionName ? `[ec.amqp:${connectionName}]` : '[ec.amqp]';
+  const mockConnectionManager = {
+    isConnected: () => true,
+    createChannel: () => ({ publish: () => {}, addSetup: () => {} }),
+    close: () => Promise.resolve(),
+  };
+  return {
+    _shuttingDown: false,
+    connectionManager: mockConnectionManager,
+    isReachable: () => Promise.resolve(true),
+    workerQueue: () => Promise.resolve(mockConnectionManager.createChannel()),
+    subscribe: () => Promise.resolve(mockConnectionManager.createChannel()),
+    plainChannel: () => mockConnectionManager.createChannel(),
+    publishChannel: () => Promise.resolve(() => {}),
+    close() {
+      if (this._shuttingDown) return Promise.resolve();
+      this._shuttingDown = true;
+      return this.connectionManager.close().catch((err) => {
+        console.error(logLabel, 'Error during graceful shutdown:', err);
+      });
+    },
+  };
 }
 
 let defaultConnection;
@@ -296,29 +341,10 @@ let defaultConnection;
 function getDefaultConnection() {
   if (!defaultConnection) {
     if (isTesting) {
-      const mockConnectionManager = {
-        isConnected: () => true,
-        createChannel: () => ({ publish: () => {}, addSetup: () => {} }),
-        close: () => Promise.resolve(),
-      };
-      defaultConnection = {
-        _shuttingDown: false,
-        connectionManager: mockConnectionManager,
-        isReachable: () => Promise.resolve(true),
-        workerQueue: () => Promise.resolve(mockConnectionManager.createChannel()),
-        subscribe: () => Promise.resolve(mockConnectionManager.createChannel()),
-        plainChannel: () => mockConnectionManager.createChannel(),
-        publishChannel: () => Promise.resolve(() => {}),
-        close() {
-          if (this._shuttingDown) return Promise.resolve();
-          this._shuttingDown = true;
-          return this.connectionManager.close().catch((err) => {
-            console.error('Error during graceful shutdown:', err);
-          });
-        },
-      };
+      defaultConnection = createMockConnection('default');
     } else {
       defaultConnection = createConnection({
+        connectionName: 'default',
         hosts: config.get('amqp.hosts'),
         user: config.get('amqp.user'),
         password: config.get('amqp.password'),

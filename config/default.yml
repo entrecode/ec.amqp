@@ -6,4 +6,3 @@ tls: false
 vhost: ""
 heartbeatIntervalInSeconds: 60
 reconnectTimeInSeconds: 10
-disableNewCluster: false
