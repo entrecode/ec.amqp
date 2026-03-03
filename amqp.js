@@ -298,7 +298,7 @@ function getDefaultConnection() {
     if (isTesting) {
       const mockConnectionManager = {
         isConnected: () => true,
-        createChannel: () => ({ publish: () => {} }),
+        createChannel: () => ({ publish: () => {}, addSetup: () => {} }),
         close: () => Promise.resolve(),
       };
       defaultConnection = {
