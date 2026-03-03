@@ -132,7 +132,7 @@ class AmqpConnection {
               const event = JSON.parse(message.content.toString());
               const properties = Object.assign({}, message.properties, { redelivered: message.fields.redelivered });
               const ack = () => channelWrapper.ack(message);
-              const nack = (timeout = 10000, requeue = false, redirectQueue) =>
+              const nack = (timeout = 10000, requeue = false, redirectQueue) => {
                 setTimeout(async () => {
                   if (redirectQueue) {
                     await channel.assertQueue(redirectQueue, {
@@ -145,6 +145,7 @@ class AmqpConnection {
                   }
                   return channelWrapper.nack(message, false, requeue);
                 }, timeout);
+              };
               try {
                 await handler(event, properties, {
                   ack,
@@ -192,10 +193,11 @@ class AmqpConnection {
               }
               const event = JSON.parse(message.content.toString());
               const ack = () => channelWrapper.ack(message);
-              const nack = (timeout = 10000) =>
+              const nack = (timeout = 10000) => {
                 setTimeout(() => {
                   channelWrapper.nack(message);
                 }, timeout);
+              };
               try {
                 await handler(event, message.properties, {
                   ack,

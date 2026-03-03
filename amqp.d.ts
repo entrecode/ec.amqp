@@ -28,11 +28,11 @@ export interface AckFunction {
 }
 
 export interface WorkerQueueNackFunction {
-  (timeout?: number, requeue?: boolean, redirectQueue?: string): NodeJS.Timeout;
+  (timeout?: number, requeue?: boolean, redirectQueue?: string): void;
 }
 
 export interface SubscribeNackFunction {
-  (timeout?: number): NodeJS.Timeout;
+  (timeout?: number): void;
 }
 
 export type WorkerQueueHandler = (
