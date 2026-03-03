@@ -212,17 +212,17 @@ Config only applies to the default connection. Connections created via `createCo
 All functions use the default connection from config, opened lazily on first call.
 
 
-| Function                                                             | Returns                   | Description                                                                           |
-| -------------------------------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------- |
-| `isReachable()`                                                      | `Promise<boolean>`        | `true` if connected, throws otherwise. Waits up to 2s on first connect.               |
-| `workerQueue(queueName, exchange, bindings, handler[, prefetch])`    | `Promise<ChannelWrapper>` | Consume from a durable quorum queue (worker pattern).                                 |
-| `subscribe(queueNamePrefix, exchange, bindings, handler[, options])` | `Promise<ChannelWrapper>` | Consume from an exclusive queue (pub/sub pattern).                                    |
-| `publishChannel(exchange[, exchangeType, durable])`                  | `Promise<function>`       | Get a `publish(routingKey, content, type, appID, options)` function.                  |
-| `plainChannel(exchange[, exchangeType, durable])`                    | `ChannelWrapper`          | Get a raw channel wrapper.                                                            |
-| `connectionManager`                                                  | `AmqpConnectionManager`   | The underlying amqp-connection-manager instance (lazy, triggers connect).             |
-| `gracefulShutdown()`                                                 | `Promise<void>`           | Close **all** connections (default + all created via `createConnection`).             |
-| `createConnection([name,] options)`                                  | `AmqpConnection`          | Create a new connection, optionally registered under `name`.                         |
-| `getConnection(name)`                                                | `AmqpConnection`          | Retrieve a named connection created with `createConnection(name, options)`.          |
+| Function                                                             | Returns                   | Description                                                                 |
+| -------------------------------------------------------------------- | ------------------------- | --------------------------------------------------------------------------- |
+| `isReachable()`                                                      | `Promise<boolean>`        | `true` if connected, throws otherwise. Waits up to 2s on first connect.     |
+| `workerQueue(queueName, exchange, bindings, handler[, prefetch])`    | `Promise<ChannelWrapper>` | Consume from a durable quorum queue (worker pattern).                       |
+| `subscribe(queueNamePrefix, exchange, bindings, handler[, options])` | `Promise<ChannelWrapper>` | Consume from an exclusive queue (pub/sub pattern).                          |
+| `publishChannel(exchange[, exchangeType, durable])`                  | `Promise<function>`       | Get a `publish(routingKey, content, type, appID, options)` function.        |
+| `plainChannel(exchange[, exchangeType, durable])`                    | `ChannelWrapper`          | Get a raw channel wrapper.                                                  |
+| `connectionManager`                                                  | `AmqpConnectionManager`   | The underlying amqp-connection-manager instance (lazy, triggers connect).   |
+| `gracefulShutdown()`                                                 | `Promise<void>`           | Close **all** connections (default + all created via `createConnection`).   |
+| `createConnection([name,] options)`                                  | `AmqpConnection`          | Create a new connection, optionally registered under `name`.                |
+| `getConnection(name)`                                                | `AmqpConnection`          | Retrieve a named connection created with `createConnection(name, options)`. |
 
 
 ### AmqpConnection
@@ -260,12 +260,13 @@ All connections are automatically closed on `SIGTERM`, `SIGINT`, `SIGHUP`, `unca
 
 ## Changelog
 
-### 0.17.0
+### 0.17.x
 
 - Multi-cluster support: `createConnection(options)` to connect to additional RabbitMQ clusters
 - Lazy default connection: no longer opens at `require()` time, connects on first use
 - `gracefulShutdown()` now closes all connections
 - Backward-compatible: existing code works without changes
+- Adds typings
 
 ### 0.16.x
 
