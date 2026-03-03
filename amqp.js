@@ -4,7 +4,7 @@ process.env.ALLOW_CONFIG_MUTATIONS = 'y';
 
 const path = require('path');
 const config = require('config');
-const amqp = require('amqp-connection-manager');
+const amqpManager = require('amqp-connection-manager');
 const { v4: uuid } = require('uuid');
 const { name: product, version } = require('./package.json');
 
@@ -21,240 +21,321 @@ function shuffleArray(array) {
   return array;
 }
 
-const connectionUser = encodeURIComponent(config.get('amqp.user'));
-const connectionPassword = encodeURIComponent(config.get('amqp.password'));
-const useTLS = config.get('amqp.tls');
-const connectionVhost =
-  config.has('amqp.vhost') && config.get('amqp.vhost') ? `/${encodeURIComponent(config.get('amqp.vhost'))}` : '';
-const connectionURLs = shuffleArray(
-  config
-    .get('amqp.hosts')
-    .map(
-      (host) => `amqp${!!useTLS ? 's' : ''}://${connectionUser}:${connectionPassword}@${host}${connectionVhost}`,
-    ),
-);
+const connectionRegistry = new Set();
+const namedConnections = new Map();
 
-let neverConnected = true;
-let shuttingDown = false;
-let connectionManager;
-if (
-  process.env.NODE_ENV === 'testing' ||
-  (config.has('amqp.active') && config.get('amqp.active') === false) ||
-  (config.has('amqp.disableNewCluster') && config.get('amqp.disableNewCluster') === true)
-) {
-  connectionManager = {
-    isConnected: () => true,
-    createChannel: () => ({ publish: () => {} }),
-    close: () => Promise.resolve(),
-  };
-  console.warn('ec.amqp is in testing mode and not attempting to connect to RabbitMQ.');
-} else {
-  const redactedURLs = connectionURLs.map((url) => url.replace(/\/\/[^@]+@/, '//***:***@'));
-  console.log('ec.amqp is trying to connect...', JSON.stringify({ connectionURLs: redactedURLs }));
+class AmqpConnection {
+  constructor(options = {}) {
+    this._shuttingDown = false;
+    this._neverConnected = true;
 
-  let clientProperties;
-  if (process.env.HOSTNAME) {
-    clientProperties = {
-      connection_name: `${process.env.HOSTNAME}-${process.pid}`,
-      product,
-      version,
-    };
-  }
-  connectionManager = amqp.connect(connectionURLs, {
-    json: true,
-    heartbeatIntervalInSeconds: config.get('amqp.heartbeatIntervalInSeconds'),
-    reconnectTimeInSeconds: config.get('amqp.reconnectTimeInSeconds'),
-    connectionOptions: {
-      clientProperties,
-    },
-  });
-  connectionManager.on('connect', (c) => {
-    console.log(
-      `amqp connected to ${c.url.replace(/\/\/[^@]+@/, '//***:***@')} (${clientProperties ? clientProperties.connection_name : 'no hostname'})`
-    );
-    neverConnected = false;
-  });
-  connectionManager.on('connectFailed', (err) => {
-    console.error('amqp connect failed:', err);
-  });
-  connectionManager.on('disconnect', ({ err }) => {
-    console.warn(
-      `amqp disconnected (${config.get('amqp.hosts').join('|')}) (${
-        clientProperties ? clientProperties.connection_name : 'no hostname'
-      })`,
+    const {
+      hosts = [],
+      user = 'guest',
+      password = 'guest',
+      tls = false,
+      vhost = '',
+      heartbeatIntervalInSeconds = 60,
+      reconnectTimeInSeconds = 10,
+    } = options;
+
+    const encodedUser = encodeURIComponent(user);
+    const encodedPassword = encodeURIComponent(password);
+    const vhostPath = vhost ? `/${encodeURIComponent(vhost)}` : '';
+    const connectionURLs = shuffleArray(
+      hosts.map((host) => `amqp${tls ? 's' : ''}://${encodedUser}:${encodedPassword}@${host}${vhostPath}`),
     );
 
-    if (err) {
-      console.warn(`amqp disconnect reason: ${err.message} ${err.stack} ${JSON.stringify(err)}`);
+    const redactedURLs = connectionURLs.map((url) => url.replace(/\/\/[^@]+@/, '//***:***@'));
+    console.log('ec.amqp is trying to connect...', JSON.stringify({ connectionURLs: redactedURLs }));
+
+    let clientProperties;
+    if (process.env.HOSTNAME) {
+      clientProperties = {
+        connection_name: `${process.env.HOSTNAME}-${process.pid}`,
+        product,
+        version,
+      };
     }
-  });
-}
 
-async function isReachable() {
-  if (shuttingDown) {
-    console.info('amqp is shutting down');
-    return false;
+    this._connectionManager = amqpManager.connect(connectionURLs, {
+      json: true,
+      heartbeatIntervalInSeconds,
+      reconnectTimeInSeconds,
+      connectionOptions: {
+        clientProperties,
+      },
+    });
+
+    this._connectionManager.on('connect', (c) => {
+      console.log(
+        `amqp connected to ${c.url.replace(/\/\/[^@]+@/, '//***:***@')} (${clientProperties ? clientProperties.connection_name : 'no hostname'})`,
+      );
+      this._neverConnected = false;
+    });
+    this._connectionManager.on('connectFailed', (err) => {
+      console.error('amqp connect failed:', err);
+    });
+    this._connectionManager.on('disconnect', ({ err }) => {
+      console.warn(
+        `amqp disconnected (${hosts.join('|')}) (${clientProperties ? clientProperties.connection_name : 'no hostname'})`,
+      );
+      if (err) {
+        console.warn(`amqp disconnect reason: ${err.message} ${err.stack} ${JSON.stringify(err)}`);
+      }
+    });
+
+    connectionRegistry.add(this);
   }
-  if (connectionManager.isConnected()) {
-    return true;
+
+  get connectionManager() {
+    return this._connectionManager;
   }
-  if (neverConnected) {
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    if (connectionManager.isConnected()) {
+
+  async isReachable() {
+    if (this._shuttingDown) {
+      console.info('amqp is shutting down');
+      return false;
+    }
+    if (this._connectionManager.isConnected()) {
       return true;
     }
-    throw new Error('amqp did not connect yet');
-  }
-  throw new Error('amqp is not connected');
-}
-
-async function workerQueue(queueName, exchange, bindings, handler, prefetch = 1) {
-  const channelWrapper = connectionManager.createChannel({
-    setup(channel) {
-      return Promise.all([
-        channel.assertExchange(exchange, 'topic', { durable: true }),
-        channel.assertQueue(queueName, {
-          durable: true,
-          arguments: {
-            'x-queue-type': 'quorum',
-          },
-        }),
-        channel.prefetch(prefetch),
-        ...bindings.map((binding) => channel.bindQueue(queueName, exchange, binding)),
-        channel.consume(
-          queueName,
-          async (message) => {
-            if (!message) {
-              throw new Error('consumer was canceled!');
-            }
-            const event = JSON.parse(message.content.toString());
-            const properties = Object.assign({}, message.properties, { redelivered: message.fields.redelivered });
-            const ack = () => channelWrapper.ack(message);
-            const nack = (timeout = 10000, requeue = false, redirectQueue) =>
-              setTimeout(async () => {
-                if (redirectQueue) {
-                  await channel.assertQueue(redirectQueue, {
-                    durable: true,
-                    arguments: {
-                      'x-queue-type': 'quorum',
-                    },
-                  });
-                  await channelWrapper.sendToQueue(redirectQueue, message.content, message.properties);
-                }
-                return channelWrapper.nack(message, false, requeue);
-              }, timeout);
-            try {
-              await handler(event, properties, {
-                ack,
-                nack,
-              });
-            } catch (err) {
-              console.error(err);
-              nack(10000, true);
-            }
-          },
-          { exclusive: false },
-        ),
-      ]);
-    },
-  });
-  return channelWrapper;
-}
-
-async function subscribe(queueNamePrefix, exchange, bindings, handler, options = {}) {
-  const channelWrapper = connectionManager.createChannel({
-    setup(channel) {
-      const queueName = `${queueNamePrefix}-${uuid()}`;
-      let consumeOptions;
-      if (options.noAck) {
-        consumeOptions = { noAck: true };
+    if (this._neverConnected) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      if (this._connectionManager.isConnected()) {
+        return true;
       }
-      let exchangeType = 'topic';
-      if (options.exchangeType) {
-        exchangeType = options.exchangeType;
-      }
-      return Promise.all([
-        channel.assertExchange(exchange, exchangeType, {
-          durable: 'durableExchange' in options ? options.durableExchange : true,
-        }),
-        channel.assertQueue(queueName, {
-          durable: 'durableQueue' in options ? options.durableQueue : false,
-          exclusive: 'exclusiveQueue' in options ? options.exclusiveQueue : true,
-        }),
-        ...bindings.map((binding) => channel.bindQueue(queueName, exchange, binding)),
-        channel.consume(
-          queueName,
-          async (message) => {
-            if (!message) {
-              throw new Error('consumer was canceled!');
-            }
-            const event = JSON.parse(message.content.toString());
-            const ack = () => channelWrapper.ack(message);
-            const nack = (timeout = 10000) =>
-              setTimeout(() => {
-                channelWrapper.nack(message);
-              }, timeout);
-            try {
-              await handler(event, message.properties, {
-                ack,
-                nack,
-              });
-            } catch (err) {
-              console.error(err);
-              nack(10000);
-            }
-          },
-          Object.assign({}, { exclusive: true }, consumeOptions),
-        ),
-      ]);
-    },
-  });
-  return channelWrapper;
-}
-
-function plainChannel(exchange, exchangeType = 'topic', durable = true) {
-  if (typeof exchangeType === 'function') {
-    console.error('plainChannel `channelCallback` has been removed in v0.8.0');
-    exchangeType = 'topic';
+      throw new Error('amqp did not connect yet');
+    }
+    throw new Error('amqp is not connected');
   }
-  return connectionManager.createChannel({
-    setup(channel) {
-      return channel.assertExchange(exchange, exchangeType, { durable });
-    },
-  });
+
+  async workerQueue(queueName, exchange, bindings, handler, prefetch = 1) {
+    const channelWrapper = this._connectionManager.createChannel({
+      setup(channel) {
+        return Promise.all([
+          channel.assertExchange(exchange, 'topic', { durable: true }),
+          channel.assertQueue(queueName, {
+            durable: true,
+            arguments: {
+              'x-queue-type': 'quorum',
+            },
+          }),
+          channel.prefetch(prefetch),
+          ...bindings.map((binding) => channel.bindQueue(queueName, exchange, binding)),
+          channel.consume(
+            queueName,
+            async (message) => {
+              if (!message) {
+                throw new Error('consumer was canceled!');
+              }
+              const event = JSON.parse(message.content.toString());
+              const properties = Object.assign({}, message.properties, { redelivered: message.fields.redelivered });
+              const ack = () => channelWrapper.ack(message);
+              const nack = (timeout = 10000, requeue = false, redirectQueue) =>
+                setTimeout(async () => {
+                  if (redirectQueue) {
+                    await channel.assertQueue(redirectQueue, {
+                      durable: true,
+                      arguments: {
+                        'x-queue-type': 'quorum',
+                      },
+                    });
+                    await channelWrapper.sendToQueue(redirectQueue, message.content, message.properties);
+                  }
+                  return channelWrapper.nack(message, false, requeue);
+                }, timeout);
+              try {
+                await handler(event, properties, {
+                  ack,
+                  nack,
+                });
+              } catch (err) {
+                console.error(err);
+                nack(10000, true);
+              }
+            },
+            { exclusive: false },
+          ),
+        ]);
+      },
+    });
+    return channelWrapper;
+  }
+
+  async subscribe(queueNamePrefix, exchange, bindings, handler, options = {}) {
+    const channelWrapper = this._connectionManager.createChannel({
+      setup(channel) {
+        const queueName = `${queueNamePrefix}-${uuid()}`;
+        let consumeOptions;
+        if (options.noAck) {
+          consumeOptions = { noAck: true };
+        }
+        let exchangeType = 'topic';
+        if (options.exchangeType) {
+          exchangeType = options.exchangeType;
+        }
+        return Promise.all([
+          channel.assertExchange(exchange, exchangeType, {
+            durable: 'durableExchange' in options ? options.durableExchange : true,
+          }),
+          channel.assertQueue(queueName, {
+            durable: 'durableQueue' in options ? options.durableQueue : false,
+            exclusive: 'exclusiveQueue' in options ? options.exclusiveQueue : true,
+          }),
+          ...bindings.map((binding) => channel.bindQueue(queueName, exchange, binding)),
+          channel.consume(
+            queueName,
+            async (message) => {
+              if (!message) {
+                throw new Error('consumer was canceled!');
+              }
+              const event = JSON.parse(message.content.toString());
+              const ack = () => channelWrapper.ack(message);
+              const nack = (timeout = 10000) =>
+                setTimeout(() => {
+                  channelWrapper.nack(message);
+                }, timeout);
+              try {
+                await handler(event, message.properties, {
+                  ack,
+                  nack,
+                });
+              } catch (err) {
+                console.error(err);
+                nack(10000);
+              }
+            },
+            Object.assign({}, { exclusive: true }, consumeOptions),
+          ),
+        ]);
+      },
+    });
+    return channelWrapper;
+  }
+
+  plainChannel(exchange, exchangeType = 'topic', durable = true) {
+    if (typeof exchangeType === 'function') {
+      console.error('plainChannel `channelCallback` has been removed in v0.8.0');
+      exchangeType = 'topic'; // eslint-disable-line no-param-reassign
+    }
+    return this._connectionManager.createChannel({
+      setup(channel) {
+        return channel.assertExchange(exchange, exchangeType, { durable });
+      },
+    });
+  }
+
+  async publishChannel(exchange, exchangeType, durable) {
+    const channelWrapper = this.plainChannel(exchange, exchangeType, durable);
+    return async function publish(routingKey, content, type, appID, options) {
+      return channelWrapper.publish(
+        exchange,
+        routingKey,
+        Buffer.from(JSON.stringify(content)),
+        Object.assign(
+          {
+            persistent: true,
+            contentType: 'application/json',
+            messageId: uuid(),
+            type: 'event',
+            appId: 'unknown',
+            timestamp: new Date().getTime(),
+          },
+          { type, appId: appID },
+          options,
+        ),
+      );
+    };
+  }
+
+  async close() {
+    if (this._shuttingDown) {
+      return Promise.resolve();
+    }
+    this._shuttingDown = true;
+    return this._connectionManager.close().catch((err) => {
+      console.error('Error during graceful shutdown:', err);
+    });
+  }
 }
 
-async function publishChannel(exchange, exchangeType, durable) {
-  const channelWrapper = plainChannel(exchange, exchangeType, durable);
-  return async function publish(routingKey, content, type, appID, options) {
-    return channelWrapper.publish(
-      exchange,
-      routingKey,
-      Buffer.from(JSON.stringify(content)),
-      Object.assign(
-        {
-          persistent: true,
-          contentType: 'application/json',
-          messageId: uuid(),
-          type: 'event',
-          appId: 'unknown',
-          timestamp: new Date().getTime(),
+function createConnection(name, options) {
+  if (typeof name === 'object') {
+    return new AmqpConnection(name);
+  }
+  if (namedConnections.has(name)) {
+    throw new Error(`ec.amqp: connection "${name}" already exists`);
+  }
+  const connection = new AmqpConnection(options);
+  namedConnections.set(name, connection);
+  return connection;
+}
+
+function getConnection(name) {
+  const connection = namedConnections.get(name);
+  if (!connection) {
+    throw new Error(`ec.amqp: connection "${name}" not found. Create it first with createConnection("${name}", options).`);
+  }
+  return connection;
+}
+
+const isTesting =
+  process.env.NODE_ENV === 'testing' ||
+  (config.has('amqp.active') && config.get('amqp.active') === false) ||
+  (config.has('amqp.disableNewCluster') && config.get('amqp.disableNewCluster') === true);
+
+if (isTesting) {
+  console.warn('ec.amqp is in testing mode and not attempting to connect to RabbitMQ.');
+}
+
+let defaultConnection;
+
+function getDefaultConnection() {
+  if (!defaultConnection) {
+    if (isTesting) {
+      const mockConnectionManager = {
+        isConnected: () => true,
+        createChannel: () => ({ publish: () => {} }),
+        close: () => Promise.resolve(),
+      };
+      defaultConnection = {
+        _shuttingDown: false,
+        connectionManager: mockConnectionManager,
+        isReachable: () => Promise.resolve(true),
+        workerQueue: () => Promise.resolve(mockConnectionManager.createChannel()),
+        subscribe: () => Promise.resolve(mockConnectionManager.createChannel()),
+        plainChannel: () => mockConnectionManager.createChannel(),
+        publishChannel: () => Promise.resolve(() => {}),
+        close() {
+          if (this._shuttingDown) return Promise.resolve();
+          this._shuttingDown = true;
+          return this.connectionManager.close().catch((err) => {
+            console.error('Error during graceful shutdown:', err);
+          });
         },
-        { type, appId: appID },
-        options,
-      ),
-    );
-  };
+      };
+    } else {
+      defaultConnection = createConnection({
+        hosts: config.get('amqp.hosts'),
+        user: config.get('amqp.user'),
+        password: config.get('amqp.password'),
+        tls: config.get('amqp.tls'),
+        vhost: config.has('amqp.vhost') ? config.get('amqp.vhost') : '',
+        heartbeatIntervalInSeconds: config.get('amqp.heartbeatIntervalInSeconds'),
+        reconnectTimeInSeconds: config.get('amqp.reconnectTimeInSeconds'),
+      });
+    }
+  }
+  return defaultConnection;
 }
 
 async function gracefulShutdown() {
-  if (shuttingDown) {
-    return Promise.resolve();
+  const promises = [...connectionRegistry].map((conn) => conn.close());
+  if (defaultConnection && !connectionRegistry.has(defaultConnection)) {
+    promises.push(defaultConnection.close());
   }
-  shuttingDown = true;
-  return connectionManager.close().catch((err) => {
-    console.error('Error during graceful shutdown:', err);
-  });
+  await Promise.all(promises);
 }
 
 process.on('SIGHUP', async () => {
@@ -290,12 +371,21 @@ process.on('beforeExit', async (code) => {
   await gracefulShutdown();
 });
 
-module.exports = {
-  isReachable,
-  workerQueue,
-  subscribe,
-  publishChannel,
-  plainChannel,
-  connectionManager,
+const moduleExports = {
+  isReachable: (...args) => getDefaultConnection().isReachable(...args),
+  workerQueue: (...args) => getDefaultConnection().workerQueue(...args),
+  subscribe: (...args) => getDefaultConnection().subscribe(...args),
+  plainChannel: (...args) => getDefaultConnection().plainChannel(...args),
+  publishChannel: (...args) => getDefaultConnection().publishChannel(...args),
   gracefulShutdown,
+  createConnection,
+  getConnection,
+  AmqpConnection,
 };
+
+Object.defineProperty(moduleExports, 'connectionManager', {
+  get: () => getDefaultConnection().connectionManager,
+  enumerable: true,
+});
+
+module.exports = moduleExports;
