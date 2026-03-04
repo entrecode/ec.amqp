@@ -315,7 +315,7 @@ function createMockConnection(connectionName) {
   const logLabel = connectionName ? `[ec.amqp:${connectionName}]` : '[ec.amqp]';
   const mockConnectionManager = {
     isConnected: () => true,
-    createChannel: () => ({ publish: () => {}, addSetup: () => {} }),
+    createChannel: () => ({ publish: () => {}, addSetup: () => Promise.resolve() }),
     close: () => Promise.resolve(),
   };
   return {
