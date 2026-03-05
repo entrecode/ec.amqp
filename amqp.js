@@ -304,15 +304,9 @@ function getConnection(name) {
   return connection;
 }
 
-const isTesting =
-  process.env.NODE_ENV === 'testing' || (config.has('amqp.active') && config.get('amqp.active') === false);
-
-if (isTesting) {
-  console.warn('ec.amqp is in testing mode and not attempting to connect to RabbitMQ.');
-}
-
 function createMockConnection(connectionName) {
   const logLabel = connectionName ? `[ec.amqp:${connectionName}]` : '[ec.amqp]';
+  console.warn(logLabel, 'ec.amqp is in testing mode and not attempting to connect to RabbitMQ.');
   const mockConnectionManager = {
     isConnected: () => true,
     createChannel: () => ({ publish: () => {}, addSetup: () => Promise.resolve() }),
@@ -335,6 +329,9 @@ function createMockConnection(connectionName) {
     },
   };
 }
+
+const isTesting =
+  process.env.NODE_ENV === 'testing' || (config.has('amqp.active') && config.get('amqp.active') === false);
 
 let defaultConnection;
 
