@@ -270,7 +270,7 @@ class AmqpConnection {
 function createConnection(name, options) {
   const opts = typeof name === 'object' ? name : options;
   const useMock =
-    process.env.NODE_ENV === 'testing' && opts && opts.active === false;
+    process.env.NODE_ENV === 'testing' || (opts && opts.active === false);
 
   if (useMock) {
     const mock = createMockConnection(typeof name === 'object' ? undefined : name);
