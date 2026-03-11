@@ -262,11 +262,10 @@ All connections are automatically closed on `SIGTERM`, `SIGINT`, `SIGHUP`, `unca
 
 ### 0.17.x
 
-- Multi-cluster support: `createConnection(options)` to connect to additional RabbitMQ clusters
-- Lazy default connection: no longer opens at `require()` time, connects on first use
-- `gracefulShutdown()` now closes all connections
-- Backward-compatible: existing code works without changes
-- Adds typings
+- Multi-cluster support: `createConnection(options)` to connect to additional RabbitMQ clusters; lazy default connection (connects on first use); `gracefulShutdown()` closes all connections; backward-compatible
+- TypeScript definitions
+- Mock for multi-cluster connections; log messages include connection name
+- Subscribe pattern: assert queues explicitly as classic
 
 ### 0.16.x
 
