@@ -187,6 +187,9 @@ class AmqpConnection {
           channel.assertQueue(queueName, {
             durable: 'durableQueue' in options ? options.durableQueue : false,
             exclusive: 'exclusiveQueue' in options ? options.exclusiveQueue : true,
+            arguments: {
+              'x-queue-type': 'classic',
+            },
           }),
           ...bindings.map((binding) => channel.bindQueue(queueName, exchange, binding)),
           channel.consume(
