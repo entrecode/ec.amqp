@@ -383,7 +383,7 @@ process.on('SIGTERM', async () => {
 
 // Unhandled exception handlers
 process.on('uncaughtException', async (err) => {
-  console.log('[ec.amqp] uncaughtException received.');
+  console.log('[ec.amqp] uncaughtException received.', err);
   await gracefulShutdown();
   process.exit(1);
 });
