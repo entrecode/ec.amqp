@@ -1,6 +1,6 @@
 {
   "name": "ec.amqp",
-  "version": "0.17.8",
+  "version": "0.17.9",
   "description": "simple access to entrecode RabbitMQ via node.js",
   "main": "amqp.js",
   "types": "amqp.d.ts",
