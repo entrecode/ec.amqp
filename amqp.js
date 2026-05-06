@@ -134,8 +134,28 @@ class AmqpConnection {
               }
               const event = JSON.parse(message.content.toString());
               const properties = Object.assign({}, message.properties, { redelivered: message.fields.redelivered });
-              const ack = () => channelWrapper.ack(message);
+              let messageSettledBy;
+              const trySettleMessage = (nextAction) => {
+                if (messageSettledBy) {
+                  console.warn(
+                    logLabel,
+                    `message(type=${message.properties.type || 'unknown'}) already settled by ${messageSettledBy}, ignoring ${nextAction}`,
+                  );
+                  return false;
+                }
+                messageSettledBy = nextAction;
+                return true;
+              };
+              const ack = () => {
+                if (!trySettleMessage('ack')) {
+                  return;
+                }
+                channelWrapper.ack(message);
+              };
               const nack = (timeout = 10000, requeue = false, redirectQueue) => {
+                if (!trySettleMessage('nack')) {
+                  return;
+                }
                 setTimeout(async () => {
                   if (redirectQueue) {
                     await channel.assertQueue(redirectQueue, {
@@ -199,13 +219,33 @@ class AmqpConnection {
                 throw new Error('consumer was canceled!');
               }
               const event = JSON.parse(message.content.toString());
-              const ack = () => channelWrapper.ack(message);
+              const logLabel = this._logLabel;
+              let messageSettledBy;
+              const trySettleMessage = (nextAction) => {
+                if (messageSettledBy) {
+                  console.warn(
+                    logLabel,
+                    `message(type=${message.properties.type || 'unknown'}) already settled by ${messageSettledBy}, ignoring ${nextAction}`,
+                  );
+                  return false;
+                }
+                messageSettledBy = nextAction;
+                return true;
+              };
+              const ack = () => {
+                if (!trySettleMessage('ack')) {
+                  return;
+                }
+                channelWrapper.ack(message);
+              };
               const nack = (timeout = 10000) => {
+                if (!trySettleMessage('nack')) {
+                  return;
+                }
                 setTimeout(() => {
                   channelWrapper.nack(message);
                 }, timeout);
               };
-              const logLabel = this._logLabel;
               try {
                 await handler(event, message.properties, {
                   ack,
