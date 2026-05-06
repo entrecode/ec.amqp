@@ -260,6 +260,10 @@ All connections are automatically closed on `SIGTERM`, `SIGINT`, `SIGHUP`, `unca
 
 ## Changelog
 
+### 0.17.10
+
+- double-ack/nack check. Should prevent double ACKs, which results in dead channels.
+
 ### 0.17.x
 
 - Multi-cluster support: `createConnection(options)` to connect to additional RabbitMQ clusters; lazy default connection (connects on first use); `gracefulShutdown()` closes all connections; backward-compatible
