@@ -111,6 +111,29 @@ const channel = amqp.plainChannel('myExchange');
 const channel = amqp.plainChannel('myExchange', 'fanout', false);
 ```
 
+Note: trace context propagation (see below) is **not** applied to publishes via `plainChannel`. If you need traceparent headers here, inject them yourself before calling `channel.publish(...)`.
+
+## OpenTelemetry / Trace Propagation
+
+`publishChannel` automatically injects W3C trace context (`traceparent` / `tracestate`) into the AMQP `headers` of each published message, using whichever propagator is registered via `@opentelemetry/api`. If a consumer is also OTel-instrumented, the resulting span will be linked as the child of the publishing span.
+
+The injection happens **synchronously** at the call site of the returned `publish(...)` function -- before amqp-connection-manager queues the publish internally. This is necessary because acm buffers publishes during reconnects and processes them later, at which point the caller's active context would already be gone.
+
+No setup is required to make this safe: if your project doesn't initialize OpenTelemetry, `@opentelemetry/api` uses a no-op propagator and nothing is injected. The change is fully backwards compatible.
+
+**Caveats:**
+
+- `plainChannel` returns the raw `ChannelWrapper` and bypasses this logic. If you publish via `plainChannel`, you have to inject the trace context yourself:
+
+  ```js
+  const { context, propagation } = require('@opentelemetry/api');
+
+  const headers = { /* your headers */ };
+  propagation.inject(context.active(), headers);
+  channel.publish(exchange, routingKey, content, { headers });
+  ```
+- Redirect-to-dead-letter via `nack(timeout, requeue, redirectQueue)` re-uses the original message properties, so the original `traceparent` (if any) is preserved. No new span context is injected.
+
 ## Multi-Cluster
 
 Use `createConnection(name, options)` to connect to additional RabbitMQ clusters. Each connection is an independent `AmqpConnection` instance with the same methods as the default connection.
@@ -259,6 +282,10 @@ async (event, properties, { ack, nack }) => { ... }
 All connections are automatically closed on `SIGTERM`, `SIGINT`, `SIGHUP`, `uncaughtException`, `unhandledRejection`, and `beforeExit`. Individual connections can also be closed via `connection.close()`.
 
 ## Changelog
+
+### 0.18.0
+
+- OpenTelemetry trace context propagation: `publishChannel` automatically injects W3C `traceparent` / `tracestate` headers using the globally registered `@opentelemetry/api` propagator. Injection happens synchronously at the call site so it works correctly despite amqp-connection-manager's internal publish queue. No-op without an OTel setup -- fully backwards compatible. `plainChannel` is not covered; inject manually if needed.
 
 ### 0.17.10
 
