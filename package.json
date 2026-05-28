@@ -1,6 +1,6 @@
 {
   "name": "ec.amqp",
-  "version": "0.17.10",
+  "version": "0.18.0",
   "description": "simple access to entrecode RabbitMQ via node.js",
   "main": "amqp.js",
   "types": "amqp.d.ts",
@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/entrecode/ec.amqp#readme",
   "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
     "@types/amqplib": "^0.10.8",
     "amqp-connection-manager": "^4.1.15",
     "amqplib": "^0.10.9",

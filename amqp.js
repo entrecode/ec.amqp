@@ -7,6 +7,7 @@ const config = require('config');
 const amqpManager = require('amqp-connection-manager');
 const { v4: uuid } = require('uuid');
 const { name: product, version } = require('./package.json');
+const { context, propagation } = require('@opentelemetry/api');
 
 // init default config
 const ourConfigDir = path.join(__dirname, 'config');
@@ -279,6 +280,9 @@ class AmqpConnection {
   async publishChannel(exchange, exchangeType, durable) {
     const channelWrapper = this.plainChannel(exchange, exchangeType, durable);
     return async function publish(routingKey, content, type, appID, options) {
+      const headers = { ...(options && options.headers) };
+      propagation.inject(context.active(), headers);
+  
       return channelWrapper.publish(
         exchange,
         routingKey,
@@ -294,6 +298,7 @@ class AmqpConnection {
           },
           { type, appId: appID },
           options,
+          { headers },
         ),
       );
     };
