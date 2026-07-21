@@ -1,0 +1,229 @@
+{
+  "cluster": "hippy-coral-armadillo.rmq5.cloudamqp.com",
+  "transient_nonexcl_queues": [
+    {
+      "vhost": "admin-center-staging",
+      "name": "ac.registrations:get-host-ip-queries",
+      "messages": 0,
+      "consumers": 1,
+      "auto_delete": false,
+      "state": "running",
+      "idle_since": null
+    }
+  ],
+  "backlog_summary": {
+    "total_messages": 775,
+    "queues_with_messages": 26,
+    "queues_without_consumers": 24
+  },
+  "top_queues": [
+    {
+      "vhost": "nightly",
+      "name": "1.DsbConnectService:Hector.ReadOnlyDataModel.AccountingEvents.errors",
+      "messages": 383,
+      "consumers": 0,
+      "durable": true,
+      "exclusive": false
+    },
+    {
+      "vhost": "nightly",
+      "name": "1.DsbConnectService:Hector.ReadOnlyDataModel.MembershipEvents.errors",
+      "messages": 124,
+      "consumers": 0,
+      "durable": true,
+      "exclusive": false
+    },
+    {
+      "vhost": "hone1",
+      "name": "1.DsbConnectService:Hector.ReadOnlyDataModel.AccountingEvents.errors",
+      "messages": 84,
+      "consumers": 0,
+      "durable": true,
+      "exclusive": false
+    },
+    {
+      "vhost": "hone1",
+      "name": "1.DsbConnectService:Hector.ReadOnlyDataModel.MembershipEvents.errors",
+      "messages": 77,
+      "consumers": 0,
+      "durable": true,
+      "exclusive": false
+    },
+    {
+      "vhost": "mgpre",
+      "name": "event-collector.errors",
+      "messages": 44,
+      "consumers": 0,
+      "durable": true,
+      "exclusive": false
+    },
+    {
+      "vhost": "admin-center-dev",
+      "name": "AdminCenter.ServiceManager.BuildWorkflowSucceededEvents.errors",
+      "messages": 18,
+      "consumers": 0,
+      "durable": true,
+      "exclusive": false
+    },
+    {
+      "vhost": "hone1",
+      "name": "event-collector.errors",
+      "messages": 8,
+      "consumers": 0,
+      "durable": true,
+      "exclusive": false
+    },
+    {
+      "vhost": "mgpre",
+      "name": "1.DsbConnectService:Hector.ReadOnlyDataModel.AccountingEvents.errors",
+      "messages": 5,
+      "consumers": 0,
+      "durable": true,
+      "exclusive": false
+    },
+    {
+      "vhost": "admin-center-dev",
+      "name": "DLY.100.Queries.errors",
+      "messages": 4,
+      "consumers": 0,
+      "durable": true,
+      "exclusive": false
+    },
+    {
+      "vhost": "hone1",
+      "name": "100.DsbConnectService:Hector.ReadOnlyDataModel.AccountingEvents.errors",
+      "messages": 4,
+      "consumers": 0,
+      "durable": true,
+      "exclusive": false
+    },
+    {
+      "vhost": "admin-center-dev",
+      "name": "ac.event-collector:entrecode-events-forwarder.errors",
+      "messages": 3,
+      "consumers": 0,
+      "durable": true,
+      "exclusive": false
+    },
+    {
+      "vhost": "mgpre",
+      "name": "1.DsbConnectService:Hector.ReadOnlyDataModel.CheckinOutEvents.errors",
+      "messages": 3,
+      "consumers": 0,
+      "durable": true,
+      "exclusive": false
+    },
+    {
+      "vhost": "hone1",
+      "name": "1.DsbConnectService:Hector.ReadOnlyDataModel.CheckinOutEvents.errors",
+      "messages": 2,
+      "consumers": 0,
+      "durable": true,
+      "exclusive": false
+    },
+    {
+      "vhost": "hone1",
+      "name": "100.AppsiteBackend:Hector.ReadOnlyDataModel.CheckinOutEvents.errors",
+      "messages": 2,
+      "consumers": 0,
+      "durable": true,
+      "exclusive": false
+    },
+    {
+      "vhost": "hone2",
+      "name": "100.AppsiteBackend:Hector.ReadOnlyDataModel.CheckinOutEvents.errors",
+      "messages": 2,
+      "consumers": 0,
+      "durable": true,
+      "exclusive": false
+    },
+    {
+      "vhost": "mgpre",
+      "name": "1.DsbConnectService:Hector.ReadOnlyDataModel.MembershipEvents.errors",
+      "messages": 2,
+      "consumers": 0,
+      "durable": true,
+      "exclusive": false
+    },
+    {
+      "vhost": "admin-center-dev",
+      "name": "AdminCenter.ServiceManager.RegistrationReceivedEvents",
+      "messages": 1,
+      "consumers": 1,
+      "durable": true,
+      "exclusive": false
+    },
+    {
+      "vhost": "admin-center-dev",
+      "name": "ac.applications:registration-received-events",
+      "messages": 1,
+      "consumers": 1,
+      "durable": true,
+      "exclusive": false
+    },
+    {
+      "vhost": "hone1",
+      "name": "100.DsbConnectService:Hector.ReadOnlyDataModel.CheckinOutEvents.errors",
+      "messages": 1,
+      "consumers": 0,
+      "durable": true,
+      "exclusive": false
+    },
+    {
+      "vhost": "hone1",
+      "name": "100.DsbConnectService:Hector.ReadOnlyDataModel.MembershipEvents.errors",
+      "messages": 1,
+      "consumers": 0,
+      "durable": true,
+      "exclusive": false
+    },
+    {
+      "vhost": "hone2",
+      "name": "100.DsbConnectService:Hector.ReadOnlyDataModel.CheckinOutEvents.errors",
+      "messages": 1,
+      "consumers": 0,
+      "durable": true,
+      "exclusive": false
+    },
+    {
+      "vhost": "hone2",
+      "name": "event-collector.errors",
+      "messages": 1,
+      "consumers": 0,
+      "durable": true,
+      "exclusive": false
+    },
+    {
+      "vhost": "mgpre",
+      "name": "100.AppsiteBackend:Hector.ReadOnlyDataModel.AccountingEvents.errors",
+      "messages": 1,
+      "consumers": 0,
+      "durable": true,
+      "exclusive": false
+    },
+    {
+      "vhost": "mgpre",
+      "name": "100.DsbConnectService:Hector.ReadOnlyDataModel.CheckinOutEvents.errors",
+      "messages": 1,
+      "consumers": 0,
+      "durable": true,
+      "exclusive": false
+    },
+    {
+      "vhost": "mgpre",
+      "name": "EgymCloudConnector.MembershipEvents.errors",
+      "messages": 1,
+      "consumers": 0,
+      "durable": true,
+      "exclusive": false
+    },
+    {
+      "vhost": "nightly",
+      "name": "1.DsbConnectService:Hector.ReadOnlyDataModel.CheckinOutEvents.errors",
+      "messages": 1,
+      "consumers": 0,
+      "durable": true,
+      "exclusive": false
+    }
+  ]
+}
