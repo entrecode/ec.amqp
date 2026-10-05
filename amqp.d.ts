@@ -62,6 +62,8 @@ export declare class AmqpConnection {
 
   isReachable(): Promise<boolean>;
 
+  redirect(queueName: string, message: { content: Buffer; properties: AmqpMessageProperties }): Promise<void>;
+
   workerQueue(
     queueName: string,
     exchange: string,

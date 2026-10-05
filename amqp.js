@@ -89,6 +89,9 @@ class AmqpConnection {
       }
     });
 
+    this._redirectChannel = undefined;
+    this._redirectSetups = new Map();
+
     connectionRegistry.add(this);
   }
 
@@ -114,7 +117,36 @@ class AmqpConnection {
     throw new Error('amqp is not connected');
   }
 
+  // Copies a message into `queueName` through an exchange of the same name on its own confirm channel,
+  // so a refused publish can neither close the consumer channel nor stay pending.
+  async redirect(queueName, { content, properties }) {
+    if (!this._redirectChannel) {
+      this._redirectChannel = this._connectionManager.createChannel({ confirm: true, publishTimeout: 10000 });
+      this._redirectChannel.on('error', (err) => console.error(this._logLabel, 'redirect channel error:', err));
+    }
+    if (!this._redirectSetups.has(queueName)) {
+      this._redirectSetups.set(
+        queueName,
+        this._redirectChannel.addSetup((channel) =>
+          Promise.all([
+            channel.assertExchange(queueName, 'direct', { durable: true }),
+            channel.assertQueue(queueName, { durable: true, arguments: { 'x-queue-type': 'quorum' } }),
+            channel.bindQueue(queueName, queueName, queueName),
+          ]),
+        ),
+      );
+    }
+    try {
+      await this._redirectSetups.get(queueName);
+    } catch (err) {
+      this._redirectSetups.delete(queueName);
+      throw err;
+    }
+    await this._redirectChannel.publish(queueName, queueName, content, properties);
+  }
+
   async workerQueue(queueName, exchange, bindings, handler, prefetch = 1) {
+    const connection = this;
     const channelWrapper = this._connectionManager.createChannel({
       setup(channel) {
         return Promise.all([
@@ -158,16 +190,17 @@ class AmqpConnection {
                   return;
                 }
                 setTimeout(async () => {
-                  if (redirectQueue) {
-                    await channel.assertQueue(redirectQueue, {
-                      durable: true,
-                      arguments: {
-                        'x-queue-type': 'quorum',
-                      },
-                    });
-                    await channelWrapper.sendToQueue(redirectQueue, message.content, message.properties);
+                  if (!redirectQueue) {
+                    channelWrapper.nack(message, false, requeue);
+                    return;
                   }
-                  return channelWrapper.nack(message, false, requeue);
+                  try {
+                    await connection.redirect(redirectQueue, message);
+                    channelWrapper.ack(message);
+                  } catch (err) {
+                    console.error(connection._logLabel, `redirect to ${redirectQueue} failed, requeueing:`, err);
+                    channelWrapper.nack(message, false, true);
+                  }
                 }, timeout);
               };
               const logLabel = this._logLabel;
@@ -433,8 +466,8 @@ process.on('uncaughtException', async (err) => {
   process.exit(1);
 });
 
-process.on('unhandledRejection', async () => {
-  console.log('[ec.amqp] unhandledRejection received.');
+process.on('unhandledRejection', async (reason) => {
+  console.log('[ec.amqp] unhandledRejection received.', reason);
   await gracefulShutdown();
   process.exit(1);
 });
