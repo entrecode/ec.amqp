@@ -130,4 +130,12 @@ export declare function publishChannel(
 
 export declare const connectionManager: AmqpConnectionManager;
 
-export declare function gracefulShutdown(): Promise<void>;
+export interface GracefulShutdownOptions {
+  /**
+   * Requeue new messages and wait up to this long for running handlers before closing.
+   * Defaults to config `amqp.shutdownDrainTimeoutMs` (env `AMQP_SHUTDOWN_DRAIN_TIMEOUT_MS`), otherwise 0.
+   */
+  drainTimeoutMs?: number;
+}
+
+export declare function gracefulShutdown(options?: GracefulShutdownOptions): Promise<void>;

@@ -6,3 +6,4 @@ tls: false
 vhost: ""
 heartbeatIntervalInSeconds: 60
 reconnectTimeInSeconds: 10
+shutdownDrainTimeoutMs: 0

@@ -203,6 +203,7 @@ amqp:
   vhost: entrecode
   heartbeatIntervalInSeconds: 10
   reconnectTimeInSeconds: 5
+  shutdownDrainTimeoutMs: 45000 # optional, see Graceful Shutdown
 ```
 
 ### Environment Variables
@@ -220,6 +221,7 @@ All values can be set via environment variables:
 | `AMQP_VHOST`                         | string                                   |
 | `AMQP_HEARTBEAT_INTERVAL_IN_SECONDS` | number                                   |
 | `AMQP_RECONNECT_TIME_IN_SECONDS`     | number                                   |
+| `AMQP_SHUTDOWN_DRAIN_TIMEOUT_MS`     | number                                   |
 
 
 ### Testing / Local Development
@@ -243,7 +245,7 @@ All functions use the default connection from config, opened lazily on first cal
 | `publishChannel(exchange[, exchangeType, durable])`                  | `Promise<function>`       | Get a `publish(routingKey, content, type, appID, options)` function.        |
 | `plainChannel(exchange[, exchangeType, durable])`                    | `ChannelWrapper`          | Get a raw channel wrapper.                                                  |
 | `connectionManager`                                                  | `AmqpConnectionManager`   | The underlying amqp-connection-manager instance (lazy, triggers connect).   |
-| `gracefulShutdown()`                                                 | `Promise<void>`           | Close **all** connections (default + all created via `createConnection`).   |
+| `gracefulShutdown(options?)`                                         | `Promise<void>`           | Close **all** connections (default + all created via `createConnection`). `options.drainTimeoutMs`: see Graceful Shutdown. |
 | `createConnection([name,] options)`                                  | `AmqpConnection`          | Create a new connection, optionally registered under `name`.                |
 | `getConnection(name)`                                                | `AmqpConnection`          | Retrieve a named connection created with `createConnection(name, options)`. |
 
@@ -281,7 +283,19 @@ async (event, properties, { ack, nack }) => { ... }
 
 All connections are automatically closed on `SIGTERM`, `SIGINT`, `SIGHUP`, `uncaughtException`, `unhandledRejection`, and `beforeExit`. Individual connections can also be closed via `connection.close()`.
 
+By default the connections are closed right away, so a handler that is still running cannot ack or publish any more and its message is redelivered to another consumer. Long-running handlers (e.g. a booking in an external system) can be given time to finish with a **drain timeout**: set `amqp.shutdownDrainTimeoutMs` (env `AMQP_SHUTDOWN_DRAIN_TIMEOUT_MS`) or call `gracefulShutdown({ drainTimeoutMs })`. While draining
+
+- messages that arrive are not handed to the handler but requeued for another consumer (after 1s; `noAck` subscriptions drop them),
+- running `workerQueue` and `subscribe` handlers get up to `drainTimeoutMs` to finish (until their returned promise settles),
+- afterwards all connections are closed.
+
+The signal handlers use the configured drain timeout; `uncaughtException` and `unhandledRejection` always close right away. ec.amqp never exits the process on signals: your app keeps its own shutdown order and can `await gracefulShutdown()` (it waits for the same drain) before exiting. Keep the timeout below the grace period of your runtime (Kubernetes: `terminationGracePeriodSeconds`).
+
 ## Changelog
+
+### 0.19.0
+
+- Optional drain on shutdown: `amqp.shutdownDrainTimeoutMs` / `AMQP_SHUTDOWN_DRAIN_TIMEOUT_MS` / `gracefulShutdown({ drainTimeoutMs })` requeue new messages and wait for running handlers before closing. Default 0 keeps the previous behaviour.
 
 ### 0.18.0
 

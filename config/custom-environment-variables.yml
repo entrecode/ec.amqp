@@ -10,3 +10,6 @@ tls:
 vhost: AMQP_VHOST
 heartbeatIntervalInSeconds: AMQP_HEARTBEAT_INTERVAL_IN_SECONDS
 reconnectTimeInSeconds: AMQP_RECONNECT_TIME_IN_SECONDS
+shutdownDrainTimeoutMs:
+  __name: AMQP_SHUTDOWN_DRAIN_TIMEOUT_MS
+  __format: number

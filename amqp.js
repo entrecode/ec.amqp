@@ -25,6 +25,51 @@ function shuffleArray(array) {
 const connectionRegistry = new Set();
 const namedConnections = new Map();
 
+// Graceful drain: handlers that are running, and whether a shutdown is draining them
+let inFlight = 0;
+let idleWaiters = [];
+let draining = false;
+// delay before a message that arrives while draining is requeued, so it does not spin
+const DRAIN_REQUEUE_DELAY_MS = 1000;
+
+function handlerSettled() {
+  inFlight -= 1;
+  if (inFlight === 0) {
+    const waiters = idleWaiters;
+    idleWaiters = [];
+    waiters.forEach((resolve) => resolve());
+  }
+}
+
+// runs a consumer handler and counts it as in flight until its promise settles
+async function runTracked(handler) {
+  inFlight += 1;
+  try {
+    return await handler();
+  } finally {
+    handlerSettled();
+  }
+}
+
+// resolves with the number of handlers still running: 0 once all finished, more after the timeout
+function waitForInFlight(timeoutMs) {
+  if (inFlight === 0) {
+    return Promise.resolve(0);
+  }
+  return new Promise((resolve) => {
+    let timer;
+    const done = () => {
+      clearTimeout(timer);
+      resolve(inFlight);
+    };
+    timer = setTimeout(() => {
+      idleWaiters = idleWaiters.filter((waiter) => waiter !== done);
+      resolve(inFlight);
+    }, timeoutMs);
+    idleWaiters.push(done);
+  });
+}
+
 class AmqpConnection {
   constructor(options = {}) {
     this._shuttingDown = false;
@@ -133,6 +178,11 @@ class AmqpConnection {
               if (!message) {
                 throw new Error('consumer was canceled!');
               }
+              if (draining) {
+                // shutting down: leave the message to another consumer
+                setTimeout(() => channelWrapper.nack(message, false, true), DRAIN_REQUEUE_DELAY_MS);
+                return;
+              }
               const event = JSON.parse(message.content.toString());
               const properties = Object.assign({}, message.properties, { redelivered: message.fields.redelivered });
               let messageSettledBy;
@@ -172,10 +222,12 @@ class AmqpConnection {
               };
               const logLabel = this._logLabel;
               try {
-                await handler(event, properties, {
-                  ack,
-                  nack,
-                });
+                await runTracked(() =>
+                  handler(event, properties, {
+                    ack,
+                    nack,
+                  }),
+                );
               } catch (err) {
                 console.error(logLabel, 'workerQueue handler error:', err);
                 nack(10000, true);
@@ -219,6 +271,13 @@ class AmqpConnection {
               if (!message) {
                 throw new Error('consumer was canceled!');
               }
+              if (draining) {
+                // shutting down: requeue (a noAck message cannot be returned and is dropped)
+                if (!options.noAck) {
+                  setTimeout(() => channelWrapper.nack(message), DRAIN_REQUEUE_DELAY_MS);
+                }
+                return;
+              }
               const event = JSON.parse(message.content.toString());
               const logLabel = this._logLabel;
               let messageSettledBy;
@@ -248,10 +307,12 @@ class AmqpConnection {
                 }, timeout);
               };
               try {
-                await handler(event, message.properties, {
-                  ack,
-                  nack,
-                });
+                await runTracked(() =>
+                  handler(event, message.properties, {
+                    ack,
+                    nack,
+                  }),
+                );
               } catch (err) {
                 console.error(logLabel, 'subscribe handler error:', err);
                 nack(10000);
@@ -403,7 +464,36 @@ function getDefaultConnection() {
   return defaultConnection;
 }
 
-async function gracefulShutdown() {
+function resolveDrainTimeout(drainTimeoutMs) {
+  if (drainTimeoutMs !== undefined) {
+    return Number(drainTimeoutMs) || 0;
+  }
+  return config.has('amqp.shutdownDrainTimeoutMs') ? Number(config.get('amqp.shutdownDrainTimeoutMs')) || 0 : 0;
+}
+
+let drainPromise;
+
+async function drain(drainTimeoutMs) {
+  draining = true;
+  console.log('[ec.amqp] draining, waiting up to', drainTimeoutMs, 'ms for', inFlight, 'running handlers');
+  const remaining = await waitForInFlight(drainTimeoutMs);
+  if (remaining) {
+    console.warn('[ec.amqp] drain timeout reached, closing with', remaining, 'handlers still running');
+  }
+}
+
+/**
+ * Closes all connections. With a drain timeout (option or config `amqp.shutdownDrainTimeoutMs`),
+ * new messages are requeued and running handlers get up to that long to finish first.
+ */
+async function gracefulShutdown(options = {}) {
+  const drainTimeoutMs = resolveDrainTimeout(options.drainTimeoutMs);
+  if (drainTimeoutMs > 0) {
+    if (!drainPromise) {
+      drainPromise = drain(drainTimeoutMs);
+    }
+    await drainPromise;
+  }
   const promises = [...connectionRegistry].map((conn) => conn.close());
   if (defaultConnection && !connectionRegistry.has(defaultConnection)) {
     promises.push(defaultConnection.close());
@@ -426,16 +516,16 @@ process.on('SIGTERM', async () => {
   await gracefulShutdown();
 });
 
-// Unhandled exception handlers
+// Unhandled exception handlers: the process exits right away, there is nothing to drain into
 process.on('uncaughtException', async (err) => {
   console.log('[ec.amqp] uncaughtException received.', err);
-  await gracefulShutdown();
+  await gracefulShutdown({ drainTimeoutMs: 0 });
   process.exit(1);
 });
 
 process.on('unhandledRejection', async () => {
   console.log('[ec.amqp] unhandledRejection received.');
-  await gracefulShutdown();
+  await gracefulShutdown({ drainTimeoutMs: 0 });
   process.exit(1);
 });
 
